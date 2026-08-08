@@ -2,7 +2,7 @@ import type { BookmarkNode, CleanupSuggestion } from './bookmarks'
 
 export const OPERATION_SCHEMA_VERSION = 1 as const
 
-export type OperationStatus = 'pending' | 'success' | 'failed' | 'skipped'
+export type OperationStatus = 'pending' | 'executing' | 'success' | 'failed' | 'skipped'
 export type UndoStatus = 'pending' | 'success' | 'failed' | 'skipped'
 
 export type OperationRecord = {
@@ -25,11 +25,10 @@ export type OperationBatch = {
   createdAt: number
   completedAt?: number
   undoneAt?: number
-  status: 'running' | 'success' | 'partial' | 'failed' | 'undone' | 'undo-partial'
+  status: 'running' | 'interrupted' | 'success' | 'partial' | 'failed' | 'undone' | 'undo-partial'
   operations: OperationRecord[]
 }
 
 export type ApplySuggestionsResponse = OperationBatch
 export type LatestBatchResponse = OperationBatch | null
 export type UndoBatchResponse = OperationBatch
-

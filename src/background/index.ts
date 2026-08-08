@@ -1,5 +1,5 @@
 import { bookmarksAdapter } from '../bookmark/bookmarksAdapter'
-import { executeSuggestions, undoBatch } from '../bookmark/operationEngine'
+import { executeSuggestions, recoverInterruptedBatch, undoBatch } from '../bookmark/operationEngine'
 import { scanBookmarks } from '../bookmark/scanBookmarks'
 import { runtimeAdapter } from '../chrome/runtimeAdapter'
 import { operationStore } from '../storage/operationStore'
@@ -22,6 +22,15 @@ chrome.runtime.onMessage.addListener(
           if (request.suggestions.length === 0) {
             return { ok: false, error: { code: 'EMPTY_BATCH', message: 'Select at least one suggestion.' } }
           }
+          {
+            const previousBatch = await operationStore.getLatestBatch()
+            if (previousBatch?.status === 'running' || previousBatch?.status === 'interrupted') {
+              return {
+                ok: false,
+                error: { code: 'UNRESOLVED_BATCH', message: 'Resolve the interrupted batch before applying more changes.' },
+              }
+            }
+          }
           return {
             ok: true,
             data: await executeSuggestions(request.suggestions, {
@@ -30,7 +39,16 @@ chrome.runtime.onMessage.addListener(
             }),
           }
         case 'GET_LATEST_BATCH':
-          return { ok: true, data: await operationStore.getLatestBatch() }
+        {
+          const storedBatch = await operationStore.getLatestBatch()
+          if (!storedBatch) return { ok: true, data: null }
+          const shouldRecover = storedBatch.status === 'running' || storedBatch.status === 'interrupted'
+          const recoveredBatch = shouldRecover
+            ? await recoverInterruptedBatch(storedBatch, bookmarksAdapter)
+            : storedBatch
+          if (shouldRecover) await operationStore.saveLatestBatch(recoveredBatch)
+          return { ok: true, data: recoveredBatch }
+        }
         case 'UNDO_LATEST_BATCH': {
           const latestBatch = await operationStore.getLatestBatch()
           if (!latestBatch) {

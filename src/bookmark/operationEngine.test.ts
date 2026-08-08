@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BookmarksAdapter } from './bookmarksAdapter'
-import { executeSuggestions, undoBatch } from './operationEngine'
+import { executeSuggestions, recoverInterruptedBatch, undoBatch } from './operationEngine'
 import type { OperationStore } from '../storage/operationStore'
 import type { BookmarkFolder, BookmarkItem, BookmarkTreeSource, CleanupSuggestion } from '../types/bookmarks'
 import type { OperationBatch } from '../types/operations'
@@ -61,6 +61,19 @@ function moveSuggestion(): CleanupSuggestion {
     before: bookmark,
     confidence: 0.9,
     reasons: ['Matches existing folder'],
+    selected: false,
+  }
+}
+
+function emptyFolderSuggestion(folder: BookmarkFolder): CleanupSuggestion {
+  return {
+    id: `empty-folder:${folder.id}`,
+    kind: 'delete-empty-folder',
+    targetId: folder.id,
+    groupKey: `empty-folder:${folder.id}`,
+    before: folder,
+    confidence: 1,
+    reasons: ['Empty folder'],
     selected: false,
   }
 }
@@ -176,6 +189,27 @@ describe('operationEngine', () => {
     expect(batch.operations.map((operation) => operation.status)).toEqual(['success', 'failed'])
   })
 
+  it('skips an empty folder that gained a child after scanning', async () => {
+    const emptyFolder: BookmarkFolder = {
+      ...sourceFolder,
+      id: 'empty-folder',
+      title: 'Was empty',
+      childIds: [],
+    }
+    const bookmarks = new MemoryBookmarks([
+      ...sourceNodes(),
+      { id: emptyFolder.id, title: emptyFolder.title, parentId: emptyFolder.parentId ?? undefined, index: emptyFolder.index },
+      { id: 'new-child', title: 'Added later', url: 'https://later.example', parentId: emptyFolder.id, index: 0 },
+    ])
+
+    const batch = await executeSuggestions([emptyFolderSuggestion(emptyFolder)], dependencies(bookmarks))
+    expect(batch.operations[0]).toMatchObject({
+      status: 'skipped',
+      error: 'The folder is no longer empty.',
+    })
+    expect(await bookmarks.get(emptyFolder.id)).not.toBeNull()
+  })
+
   it('moves a bookmark and restores its original parent and index', async () => {
     const bookmarks = new MemoryBookmarks(sourceNodes())
     const deps = dependencies(bookmarks)
@@ -189,5 +223,19 @@ describe('operationEngine', () => {
       parentId: sourceFolder.id,
       index: bookmark.index,
     })
+  })
+
+  it('recovers the outcome of an operation interrupted after Chrome applied it', async () => {
+    const bookmarks = new MemoryBookmarks(sourceNodes())
+    const batch = await executeSuggestions([deleteSuggestion()], dependencies(bookmarks))
+    const persistedDuringExecution: OperationBatch = {
+      ...batch,
+      status: 'running',
+      operations: batch.operations.map((operation) => ({ ...operation, status: 'executing' })),
+    }
+
+    const recovered = await recoverInterruptedBatch(persistedDuringExecution, bookmarks)
+    expect(recovered.status).toBe('success')
+    expect(recovered.operations[0].status).toBe('success')
   })
 })

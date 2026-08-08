@@ -31,6 +31,7 @@ p { color: #596579; line-height: 1.55; }
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 32px; margin-bottom: 28px; }
 .page-header p { margin-bottom: 0; }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.stats-five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .stat { border: 1px solid #e1e5eb; border-radius: 14px; background: white; padding: 20px; }
 .stat strong { display: block; font-size: 30px; letter-spacing: -.04em; }
 .stat span { color: #66738a; font-size: 13px; }
@@ -38,6 +39,8 @@ p { color: #596579; line-height: 1.55; }
 .section-card { margin-top: 18px; }
 .batch-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 18px 0; border-color: #cad4ff; background: #f7f8ff; }
 .batch-card p { margin: 5px 0 0; }
+.batch-results { margin: 10px 0 0; padding-left: 18px; color: #9a2d2d; font-size: 12px; }
+.warning-text { color: #815b12; font-weight: 700; }
 .batch-title { text-transform: capitalize; }
 .secondary-button { color: #3659d9; border: 1px solid #c7d1fb; background: white; }
 .secondary-button:hover { background: #eef1ff; }
@@ -50,14 +53,17 @@ p { color: #596579; line-height: 1.55; }
 .issue-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .badge, .read-only-pill { border-radius: 999px; padding: 5px 9px; color: #20623b; background: #e9f7ef; font-size: 11px; font-weight: 800; }
 .badge-caution { color: #795414; background: #fff5dc; }
+.badge-move { color: #2c4fa8; background: #edf1ff; }
 .confidence, .result-count { color: #758097; font-size: 12px; }
 .path { display: block; overflow: hidden; color: #758097; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .keeper { color: #2758a5 !important; }
+.destination { color: #2c4fa8 !important; font-weight: 700; }
 .select-control { display: flex; align-items: center; gap: 8px; margin-top: 5px; color: #364156; font-size: 13px; font-weight: 700; cursor: pointer; }
 .select-control input { width: 16px; height: 16px; accent-color: #3659d9; }
 .review-bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 18px; border-radius: 12px; padding: 15px 16px; background: #eef1ff; }
 .review-bar strong, .review-bar span { display: block; }
 .review-bar span { margin-top: 2px; color: #65718a; font-size: 12px; }
+.sticky-review { position: sticky; z-index: 5; bottom: 16px; border: 1px solid #cbd4fa; box-shadow: 0 10px 35px rgb(35 55 110 / 16%); }
 .search-field input { width: 100%; border: 1px solid #d7dce4; border-radius: 11px; padding: 12px 14px; color: #17202a; background: #fafbfc; }
 .bookmark-list { margin: 16px 0 0; padding: 0; list-style: none; }
 .bookmark-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid #edf0f3; padding: 13px 3px; }

@@ -61,6 +61,7 @@ export type ScanSummary = {
   duplicateGroups: number
   duplicateBookmarks: number
   emptyFolders: number
+  classificationSuggestions: number
 }
 
 export type BookmarkScanResult = {

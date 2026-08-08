@@ -96,6 +96,8 @@ export async function executeSuggestions(
 
   for (const operation of batch.operations) {
     if (operation.status !== 'pending') continue
+    operation.status = 'executing'
+    await dependencies.store.saveLatestBatch(batch)
     try {
       if (operation.kind === 'move' && operation.after) {
         await dependencies.bookmarks.move(operation.targetId, { parentId: operation.after.parentId })
@@ -137,6 +139,11 @@ export async function undoBatch(
 ): Promise<OperationBatch> {
   if (batch.status === 'undone') return batch
   const now = dependencies.now ?? Date.now
+  const uncertain = batch.operations.filter((operation) => operation.status === 'executing')
+  for (const operation of uncertain) {
+    operation.undoStatus = 'skipped'
+    operation.undoError = 'This operation was interrupted while Chrome was changing the bookmark; verify it manually.'
+  }
   const reversible = [...batch.operations].reverse().filter((operation) => operation.status === 'success')
 
   for (const operation of reversible) {
@@ -170,10 +177,38 @@ export async function undoBatch(
     await dependencies.store.saveLatestBatch(batch)
   }
 
-  const undoSucceeded = reversible.length > 0
+  const undoSucceeded = uncertain.length === 0 && reversible.length > 0
     && reversible.every((operation) => operation.undoStatus === 'success')
   batch.undoneAt = now()
   batch.status = undoSucceeded ? 'undone' : 'undo-partial'
   await dependencies.store.saveLatestBatch(batch)
+  return batch
+}
+
+export async function recoverInterruptedBatch(
+  batch: OperationBatch,
+  bookmarks: BookmarksAdapter,
+): Promise<OperationBatch> {
+  if (batch.status !== 'running' && batch.status !== 'interrupted') return batch
+
+  for (const operation of batch.operations.filter((item) => item.status === 'executing')) {
+    const current = await bookmarks.get(operation.targetId)
+    if (operation.kind === 'delete') {
+      if (!current) operation.status = 'success'
+      else if (nodeMatchesSnapshot(current, operation.before)) {
+        operation.status = 'skipped'
+        operation.error = 'The interrupted delete was confirmed not to have run.'
+      }
+    } else if (current?.parentId === operation.after?.parentId) {
+      operation.status = 'success'
+    } else if (current && nodeMatchesSnapshot(current, operation.before)) {
+      operation.status = 'skipped'
+      operation.error = 'The interrupted move was confirmed not to have run.'
+    }
+  }
+
+  batch.status = batch.operations.some((operation) => operation.status === 'executing')
+    ? 'interrupted'
+    : finishStatus(batch.operations)
   return batch
 }

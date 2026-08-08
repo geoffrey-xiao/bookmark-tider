@@ -85,6 +85,7 @@ describe('analyzeBookmarks', () => {
       duplicateGroups: 2,
       duplicateBookmarks: 2,
       emptyFolders: 1,
+      classificationSuggestions: 0,
     })
     expect(result.suggestions).toHaveLength(3)
     expect(result.suggestions.every((suggestion) => suggestion.selected === false)).toBe(true)
@@ -100,4 +101,3 @@ describe('analyzeBookmarks', () => {
     }))
   })
 })
-

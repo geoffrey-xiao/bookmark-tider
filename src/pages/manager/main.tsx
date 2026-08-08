@@ -30,14 +30,20 @@ function IssueCard({
   const keeper = suggestion.keepId
     ? result.nodes[result.indexes.byId[suggestion.keepId]]
     : null
+  const destination = suggestion.targetFolderId
+    ? result.nodes[result.indexes.byId[suggestion.targetFolderId]]
+    : null
+  const badgeLabel = suggestion.kind === 'move-bookmark'
+    ? 'Move suggestion'
+    : suggestion.kind === 'delete-empty-folder'
+      ? 'Empty folder'
+      : suggestion.duplicateType === 'exact' ? 'Exact duplicate' : 'Normalized duplicate'
 
   return (
     <article className={`issue-card ${selected ? 'issue-selected' : ''}`}>
       <div className="issue-heading">
-        <span className={`badge ${suggestion.duplicateType === 'normalized' ? 'badge-caution' : ''}`}>
-          {suggestion.kind === 'delete-empty-folder'
-            ? 'Empty folder'
-            : suggestion.duplicateType === 'exact' ? 'Exact duplicate' : 'Normalized duplicate'}
+        <span className={`badge ${suggestion.duplicateType === 'normalized' ? 'badge-caution' : ''} ${suggestion.kind === 'move-bookmark' ? 'badge-move' : ''}`}>
+          {badgeLabel}
         </span>
         <span className="confidence">{Math.round(suggestion.confidence * 100)}% confidence</span>
       </div>
@@ -45,6 +51,7 @@ function IssueCard({
       <span className="path">{fullPath(suggestion.before)}</span>
       {suggestion.before.type === 'bookmark' && <code>{suggestion.before.url}</code>}
       {keeper && <p className="keeper">Keep: {fullPath(keeper)}</p>}
+      {destination && <p className="destination">Move to: {fullPath(destination)}</p>}
       <p>{suggestion.reasons[0]}</p>
       <label className="select-control">
         <input type="checkbox" checked={selected} onChange={onToggle} />
@@ -62,15 +69,29 @@ function BatchSummary({ batch, undoing, onUndo }: {
   const succeeded = batch.operations.filter((operation) => operation.status === 'success').length
   const failed = batch.operations.filter((operation) => operation.status === 'failed').length
   const skipped = batch.operations.filter((operation) => operation.status === 'skipped').length
+  const uncertain = batch.operations.filter((operation) => operation.status === 'executing').length
   const canUndo = batch.status !== 'undone'
     && batch.operations.some((operation) => operation.status === 'success' && operation.undoStatus !== 'success')
+  const issues = batch.operations.filter((operation) =>
+    operation.error || operation.undoError,
+  )
 
   return (
     <section className="card batch-card" aria-live="polite">
       <div>
         <span className="eyebrow">Latest operation batch</span>
         <h2 className="batch-title">{batch.status.replace('-', ' ')}</h2>
-        <p>{succeeded} succeeded · {failed} failed · {skipped} skipped</p>
+        <p>{succeeded} succeeded · {failed} failed · {skipped} skipped{uncertain ? ` · ${uncertain} needs verification` : ''}</p>
+        {batch.status === 'interrupted' && (
+          <p className="warning-text">The worker stopped during this batch. Verify uncertain items before making more changes.</p>
+        )}
+        {issues.length > 0 && (
+          <ul className="batch-results">
+            {issues.map((operation) => (
+              <li key={operation.id}>{operation.before.title || operation.targetId}: {operation.undoError ?? operation.error}</li>
+            ))}
+          </ul>
+        )}
       </div>
       {canUndo && (
         <button type="button" className="secondary-button" onClick={onUndo} disabled={undoing}>
@@ -109,6 +130,7 @@ export function Manager() {
       .then((response) => {
         if (response.ok) setLatestBatch(response.data)
       })
+      .catch(() => setError('Saved operation history is temporarily unavailable. Scanning is still safe.'))
   }, [])
 
   const bookmarks = useMemo(() => {
@@ -124,6 +146,8 @@ export function Manager() {
 
   const duplicateSuggestions = result?.suggestions.filter((item) => item.kind === 'delete-duplicate') ?? []
   const emptyFolderSuggestions = result?.suggestions.filter((item) => item.kind === 'delete-empty-folder') ?? []
+  const classificationSuggestions = result?.suggestions.filter((item) => item.kind === 'move-bookmark') ?? []
+  const cleanupSuggestionCount = duplicateSuggestions.length + emptyFolderSuggestions.length
 
   const scan = async () => {
     setLoading(true)
@@ -202,7 +226,7 @@ export function Manager() {
     <main className="shell">
       <header className="page-header">
         <div>
-          <span className="eyebrow">Day 2 · Review, apply, undo</span>
+          <span className="eyebrow">v0.1 · Scan, organize, undo</span>
           <h1>Bookmark Tidy</h1>
           <p>Scanning is read-only. Only suggestions you select and explicitly confirm can modify bookmarks.</p>
         </div>
@@ -222,23 +246,24 @@ export function Manager() {
         </section>
       ) : (
         <>
-          <section className="stats" aria-label="Library overview">
+          <section className="stats stats-five" aria-label="Library overview">
             <div className="stat"><strong>{result.summary.bookmarks}</strong><span>Bookmarks</span></div>
             <div className="stat"><strong>{result.summary.folders}</strong><span>Folders</span></div>
             <div className="stat stat-accent"><strong>{result.summary.duplicateGroups}</strong><span>Duplicate groups</span></div>
             <div className="stat stat-accent"><strong>{result.summary.emptyFolders}</strong><span>Empty folders</span></div>
+            <div className="stat stat-accent"><strong>{result.summary.classificationSuggestions}</strong><span>Folder suggestions</span></div>
           </section>
 
           <section className="card section-card">
             <div className="section-heading">
               <div>
                 <span className="eyebrow">Cleanup findings</span>
-                <h2>{result.suggestions.length} suggestions to review</h2>
+                <h2>{cleanupSuggestionCount} cleanup suggestions</h2>
               </div>
               <span className="read-only-pill">Review required</span>
             </div>
 
-            {result.suggestions.length === 0 ? (
+            {cleanupSuggestionCount === 0 ? (
               <p>No duplicates or empty folders found.</p>
             ) : (
               <div className="issues-grid">
@@ -262,18 +287,44 @@ export function Manager() {
                 ))}
               </div>
             )}
-            {result.suggestions.length > 0 && (
-              <div className="review-bar">
-                <div>
-                  <strong>{selectedIds.size} selected</strong>
-                  <span>Nothing changes until you confirm.</span>
-                </div>
-                <button type="button" onClick={applySelected} disabled={selectedIds.size === 0 || applying || loading}>
-                  {applying ? 'Applying…' : 'Apply reviewed changes'}
-                </button>
+          </section>
+
+          <section className="card section-card">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Existing-folder classification</span>
+                <h2>{classificationSuggestions.length} organization suggestions</h2>
+              </div>
+              <span className="read-only-pill">No new folders</span>
+            </div>
+            {classificationSuggestions.length === 0 ? (
+              <p>No high-confidence moves to existing folders were found.</p>
+            ) : (
+              <div className="issues-grid">
+                {classificationSuggestions.map((suggestion) => (
+                  <IssueCard
+                    key={suggestion.id}
+                    suggestion={suggestion}
+                    result={result}
+                    selected={selectedIds.has(suggestion.id)}
+                    onToggle={() => toggleSuggestion(suggestion.id)}
+                  />
+                ))}
               </div>
             )}
           </section>
+
+          {result.suggestions.length > 0 && (
+            <div className="review-bar sticky-review">
+              <div>
+                <strong>{selectedIds.size} selected</strong>
+                <span>Nothing changes until you confirm. Every target is checked again first.</span>
+              </div>
+              <button type="button" onClick={applySelected} disabled={selectedIds.size === 0 || applying || loading}>
+                {applying ? 'Applying…' : 'Apply reviewed changes'}
+              </button>
+            </div>
+          )}
 
           <section className="card section-card">
             <div className="section-heading">

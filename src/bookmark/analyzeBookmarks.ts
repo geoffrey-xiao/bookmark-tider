@@ -6,6 +6,7 @@ import type {
   CleanupSuggestion,
 } from '../types/bookmarks'
 import type { ScannedBookmarkTree } from './scanner'
+import { classifyBookmarks } from '../rules/classifyBookmarks'
 
 function chooseKeeper(bookmarks: BookmarkItem[]): BookmarkItem {
   return [...bookmarks].sort((left, right) => {
@@ -82,20 +83,22 @@ function emptyFolderSuggestions(nodes: BookmarkNode[]): CleanupSuggestion[] {
 export function analyzeBookmarks(scan: ScannedBookmarkTree): BookmarkScanResult {
   const duplicateItems = duplicateSuggestions(scan.nodes)
   const emptyFolders = emptyFolderSuggestions(scan.nodes)
+  const cleanupSuggestions = [...duplicateItems, ...emptyFolders]
+  const classificationSuggestions = classifyBookmarks(scan.nodes, cleanupSuggestions)
   const duplicateGroups = new Set(duplicateItems.map((suggestion) => suggestion.groupKey)).size
 
   return {
     scannedAt: Date.now(),
     nodes: scan.nodes,
     indexes: scan.indexes,
-    suggestions: [...duplicateItems, ...emptyFolders],
+    suggestions: [...cleanupSuggestions, ...classificationSuggestions],
     summary: {
       bookmarks: scan.nodes.filter((node) => node.type === 'bookmark').length,
       folders: scan.nodes.filter((node) => node.type === 'folder').length,
       duplicateGroups,
       duplicateBookmarks: duplicateItems.length,
       emptyFolders: emptyFolders.length,
+      classificationSuggestions: classificationSuggestions.length,
     },
   }
 }
-

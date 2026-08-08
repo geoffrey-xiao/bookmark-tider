@@ -111,10 +111,10 @@ Scanner → Analyzers → Suggestion[]
 
 以下条件必须全部满足，才称为“三天 MVP 完成”：
 
-- [ ] `npm run typecheck` 无错误。
-- [ ] `npm run lint` 无错误或警告。
-- [ ] `npm test` 全部通过。
-- [ ] `npm run build` 成功并生成有效 Manifest V3 产物。
+- [x] `npm run typecheck` 无错误。
+- [x] `npm run lint` 无错误或警告。
+- [x] `npm test` 全部通过。
+- [x] `npm run build` 成功并生成有效 Manifest V3 产物。
 - [ ] Chrome 开发者模式可加载 `dist/`，Popup、Manager 和 Worker 无控制台错误。
 - [ ] 只读扫描不修改书签。
 - [ ] 重复项和空目录建议在相同输入下保持稳定。
