@@ -2,6 +2,8 @@
 
 A safety-first Chrome Manifest V3 extension for scanning, cleaning, and organizing bookmarks. The core product rule is: analyze first, review changes, then apply—with an undo path.
 
+The active v0.1 delivery plan is the [three-day MVP roadmap](bookmark_tidy_docs/Bookmark_Tidy_MVP_迭代路线图.md). The larger engineering checklist is retained as the v0.2+ backlog.
+
 ## Getting started
 
 ```sh
