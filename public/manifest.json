@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Tidy",
+  "description": "Safely scan, review, organize, and undo changes to Chrome bookmarks.",
+  "version": "0.1.0",
+  "permissions": ["bookmarks", "storage"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Bookmark Tidy",
+    "default_popup": "popup.html"
+  },
+  "options_page": "manager.html"
+}
+
