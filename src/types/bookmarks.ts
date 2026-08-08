@@ -64,10 +64,36 @@ export type ScanSummary = {
   classificationSuggestions: number
 }
 
+export type ClassificationDiagnostics = {
+  candidateFolders: number
+  bookmarksVisited: number
+  skippedCleanupTargets: number
+  bookmarksAlreadyInMeaningfulFolder: number
+  eligibleForClassification: number
+  eligibleContentPlatformBookmarks: number
+  bookmarksWithDomainCandidates: number
+  bookmarksWithKeywordCandidates: number
+  skippedNoCandidate: number
+  skippedTopScoreTie: number
+  skippedCurrentPlacementAsGoodOrBetter: number
+  suggestionsCreated: number
+}
+
+export type ScanDiagnostics = {
+  analyzerBuild: string
+  rootNodes: number
+  protectedFolders: number
+  userFolders: number
+  bookmarksByDepth: Record<string, number>
+  foldersByDepth: Record<string, number>
+  classification: ClassificationDiagnostics
+}
+
 export type BookmarkScanResult = {
   scannedAt: number
   nodes: BookmarkNode[]
   indexes: BookmarkIndexes
   suggestions: CleanupSuggestion[]
   summary: ScanSummary
+  diagnostics: ScanDiagnostics
 }

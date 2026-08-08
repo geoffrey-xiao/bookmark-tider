@@ -99,5 +99,20 @@ describe('analyzeBookmarks', () => {
       kind: 'delete-empty-folder',
       targetId: '11',
     }))
+    expect(result.diagnostics).toMatchObject({
+      analyzerBuild: 'diagnostics-2026-08-08-v2-folder-comparison',
+      rootNodes: 1,
+      protectedFolders: 2,
+      userFolders: 2,
+      bookmarksByDepth: { 3: 4 },
+      foldersByDepth: { 0: 1, 1: 1, 2: 2 },
+      classification: {
+        bookmarksVisited: 4,
+        skippedCleanupTargets: 2,
+        bookmarksAlreadyInMeaningfulFolder: 2,
+        eligibleForClassification: 2,
+        suggestionsCreated: 0,
+      },
+    })
   })
 })

@@ -37,6 +37,18 @@ p { color: #596579; line-height: 1.55; }
 .stat span { color: #66738a; font-size: 13px; }
 .stat-accent { background: #f3f5ff; border-color: #dce2ff; }
 .section-card { margin-top: 18px; }
+.diagnostics-card { margin-top: 18px; border-color: #cdd6ef; background: #f9faff; }
+.diagnostics-card summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; cursor: pointer; }
+.diagnostics-card summary > span { display: flex; flex-direction: column; gap: 5px; }
+.diagnostics-card summary code { color: #4f5b70; font-size: 12px; }
+.diagnostics-card > p { margin: 14px 0; font-size: 13px; }
+.diagnostics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.diagnostics-grid div { border: 1px solid #e2e6f2; border-radius: 10px; padding: 11px 12px; background: white; }
+.diagnostics-grid dt { color: #66738a; font-size: 11px; }
+.diagnostics-grid dd { margin: 3px 0 0; font-size: 20px; font-weight: 800; }
+.depth-diagnostics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.depth-diagnostics span { display: flex; flex-direction: column; gap: 4px; color: #66738a; font-size: 12px; }
+.depth-diagnostics strong { color: #364156; }
 .batch-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 18px 0; border-color: #cad4ff; background: #f7f8ff; }
 .batch-card p { margin: 5px 0 0; }
 .batch-results { margin: 10px 0 0; padding-left: 18px; color: #9a2d2d; font-size: 12px; }
@@ -81,6 +93,8 @@ p { color: #596579; line-height: 1.55; }
   .shell { padding: 24px 18px 48px; }
   .page-header { align-items: flex-start; flex-direction: column; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .diagnostics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .depth-diagnostics { grid-template-columns: 1fr; }
   .issues-grid { grid-template-columns: 1fr; }
   .batch-card, .review-bar { align-items: stretch; flex-direction: column; }
   .bookmark-row { align-items: flex-start; flex-direction: column; gap: 5px; }

@@ -54,6 +54,15 @@ describe('classifyBookmarks', () => {
       confidence: 0.82,
       selected: false,
     }))
+    expect(result.diagnostics.classification).toMatchObject({
+      candidateFolders: 2,
+      bookmarksVisited: 5,
+      bookmarksAlreadyInMeaningfulFolder: 3,
+      eligibleForClassification: 5,
+      bookmarksWithDomainCandidates: 1,
+      bookmarksWithKeywordCandidates: 1,
+      suggestionsCreated: 2,
+    })
   })
 
   it('does not pull bookmarks out of a stronger domain cluster', () => {
@@ -66,18 +75,28 @@ describe('classifyBookmarks', () => {
     expect(movedIds).not.toContain('101')
   })
 
-  it('does not reorganize bookmarks already placed in a meaningful user folder', () => {
+  it('suggests a stronger destination for a bookmark in the wrong named folder', () => {
     const tree = classificationTree()
     tree[0].children?.[0].children?.find((folder) => folder.id === '11')?.children?.push({
       id: '111',
-      title: 'Development weekly news',
+      title: 'Development weekly update',
       url: 'https://weekly.example/development',
     })
 
     const result = analyzeBookmarks(scanBookmarkTree(tree))
-    expect(result.suggestions).not.toContainEqual(expect.objectContaining({
+    expect(result.suggestions).toContainEqual(expect.objectContaining({
       kind: 'move-bookmark',
       targetId: '111',
+      targetFolderId: '10',
+    }))
+  })
+
+  it('keeps a bookmark when its current named folder is an equally strong match', () => {
+    const result = analyzeBookmarks(scanBookmarkTree(classificationTree()))
+
+    expect(result.suggestions).not.toContainEqual(expect.objectContaining({
+      kind: 'move-bookmark',
+      targetId: '110',
     }))
   })
 

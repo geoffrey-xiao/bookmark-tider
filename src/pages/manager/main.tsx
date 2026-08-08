@@ -114,6 +114,50 @@ function BookmarkRow({ bookmark }: { bookmark: BookmarkItem }) {
   )
 }
 
+function formatDepths(depths: Record<string, number>): string {
+  const entries = Object.entries(depths).sort(([left], [right]) => Number(left) - Number(right))
+  return entries.length ? entries.map(([depth, count]) => `D${depth}: ${count}`).join(' · ') : 'None'
+}
+
+function Diagnostics({ result }: { result: BookmarkScanResult }) {
+  const diagnostics = result.diagnostics
+  const classification = diagnostics.classification
+
+  return (
+    <details className="card diagnostics-card" open>
+      <summary>
+        <span>
+          <span className="eyebrow">Read-only diagnostics</span>
+          <strong>Why suggestions were included or filtered</strong>
+        </span>
+        <code>{diagnostics.analyzerBuild}</code>
+      </summary>
+      <p>This section contains counts only. It does not expose bookmark URLs or change the library.</p>
+      <dl className="diagnostics-grid">
+        <div><dt>Root nodes</dt><dd>{diagnostics.rootNodes}</dd></div>
+        <div><dt>Protected folders</dt><dd>{diagnostics.protectedFolders}</dd></div>
+        <div><dt>User folders</dt><dd>{diagnostics.userFolders}</dd></div>
+        <div><dt>Candidate folders</dt><dd>{classification.candidateFolders}</dd></div>
+        <div><dt>Bookmarks visited</dt><dd>{classification.bookmarksVisited}</dd></div>
+        <div><dt>Eligible for classification</dt><dd>{classification.eligibleForClassification}</dd></div>
+        <div><dt>Already in named folders</dt><dd>{classification.bookmarksAlreadyInMeaningfulFolder}</dd></div>
+        <div><dt>Cleanup targets skipped</dt><dd>{classification.skippedCleanupTargets}</dd></div>
+        <div><dt>Content-platform candidates</dt><dd>{classification.eligibleContentPlatformBookmarks}</dd></div>
+        <div><dt>With domain candidates</dt><dd>{classification.bookmarksWithDomainCandidates}</dd></div>
+        <div><dt>With keyword candidates</dt><dd>{classification.bookmarksWithKeywordCandidates}</dd></div>
+        <div><dt>No qualifying destination</dt><dd>{classification.skippedNoCandidate}</dd></div>
+        <div><dt>Top-score ties</dt><dd>{classification.skippedTopScoreTie}</dd></div>
+        <div><dt>Current folder as good or better</dt><dd>{classification.skippedCurrentPlacementAsGoodOrBetter}</dd></div>
+        <div><dt>Move suggestions created</dt><dd>{classification.suggestionsCreated}</dd></div>
+      </dl>
+      <div className="depth-diagnostics">
+        <span><strong>Bookmarks by depth</strong>{formatDepths(diagnostics.bookmarksByDepth)}</span>
+        <span><strong>Folders by depth</strong>{formatDepths(diagnostics.foldersByDepth)}</span>
+      </div>
+    </details>
+  )
+}
+
 export function Manager() {
   const [result, setResult] = useState<BookmarkScanResult | null>(null)
   const [query, setQuery] = useState('')
@@ -253,6 +297,8 @@ export function Manager() {
             <div className="stat stat-accent"><strong>{result.summary.emptyFolders}</strong><span>Empty folders</span></div>
             <div className="stat stat-accent"><strong>{result.summary.classificationSuggestions}</strong><span>Folder suggestions</span></div>
           </section>
+
+          <Diagnostics result={result} />
 
           <section className="card section-card">
             <div className="section-heading">

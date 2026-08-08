@@ -6,7 +6,14 @@ import type {
   CleanupSuggestion,
 } from '../types/bookmarks'
 import type { ScannedBookmarkTree } from './scanner'
-import { classifyBookmarks } from '../rules/classifyBookmarks'
+import { classifyBookmarksWithDiagnostics } from '../rules/classifyBookmarks'
+
+const ANALYZER_BUILD = 'diagnostics-2026-08-08-v2-folder-comparison'
+
+function incrementDepth(index: Record<string, number>, depth: number): void {
+  const key = String(depth)
+  index[key] = (index[key] ?? 0) + 1
+}
 
 function chooseKeeper(bookmarks: BookmarkItem[]): BookmarkItem {
   return [...bookmarks].sort((left, right) => {
@@ -84,8 +91,18 @@ export function analyzeBookmarks(scan: ScannedBookmarkTree): BookmarkScanResult 
   const duplicateItems = duplicateSuggestions(scan.nodes)
   const emptyFolders = emptyFolderSuggestions(scan.nodes)
   const cleanupSuggestions = [...duplicateItems, ...emptyFolders]
-  const classificationSuggestions = classifyBookmarks(scan.nodes, cleanupSuggestions)
+  const classification = classifyBookmarksWithDiagnostics(scan.nodes, cleanupSuggestions)
+  const classificationSuggestions = classification.suggestions
   const duplicateGroups = new Set(duplicateItems.map((suggestion) => suggestion.groupKey)).size
+  const depthsById = new Map<string, number>()
+  const bookmarksByDepth: Record<string, number> = {}
+  const foldersByDepth: Record<string, number> = {}
+
+  for (const node of scan.nodes) {
+    const depth = node.parentId === null ? 0 : (depthsById.get(node.parentId) ?? -1) + 1
+    depthsById.set(node.id, depth)
+    incrementDepth(node.type === 'bookmark' ? bookmarksByDepth : foldersByDepth, depth)
+  }
 
   return {
     scannedAt: Date.now(),
@@ -99,6 +116,15 @@ export function analyzeBookmarks(scan: ScannedBookmarkTree): BookmarkScanResult 
       duplicateBookmarks: duplicateItems.length,
       emptyFolders: emptyFolders.length,
       classificationSuggestions: classificationSuggestions.length,
+    },
+    diagnostics: {
+      analyzerBuild: ANALYZER_BUILD,
+      rootNodes: scan.nodes.filter((node) => node.parentId === null).length,
+      protectedFolders: scan.nodes.filter((node) => node.type === 'folder' && node.isProtected).length,
+      userFolders: scan.nodes.filter((node) => node.type === 'folder' && !node.isProtected).length,
+      bookmarksByDepth,
+      foldersByDepth,
+      classification: classification.diagnostics,
     },
   }
 }

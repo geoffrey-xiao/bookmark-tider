@@ -2,12 +2,14 @@ import type {
   BookmarkFolder,
   BookmarkItem,
   BookmarkNode,
+  ClassificationDiagnostics,
   CleanupSuggestion,
 } from '../types/bookmarks'
 
 const GENERIC_FOLDER_WORDS = new Set([
   'bookmark', 'bookmarks', 'favorite', 'favorites', 'folder', 'links',
-  'inbox', 'misc', 'miscellaneous', 'other', 'uncategorized', 'unsorted', '收藏', '书签', '未分类',
+  'imported', 'inbox', 'misc', 'miscellaneous', 'other', 'uncategorized', 'unsorted',
+  '导入', '导入的书签', '已导入', '收藏', '书签', '未分类',
 ])
 
 const CONTENT_PLATFORM_DOMAINS = [
@@ -21,6 +23,16 @@ type FolderProfile = {
   domainCounts: Map<string, number>
   bookmarkCount: number
 }
+
+type ProfileMatch = {
+  profile: FolderProfile
+  score: number
+  reason: string
+  matchedByDomain: boolean
+  matchedByKeyword: boolean
+}
+
+const MIN_DESTINATION_ADVANTAGE = 0.08
 
 function tokens(value: string): string[] {
   return [...new Set(
@@ -80,21 +92,47 @@ function isContentPlatform(domain: string): boolean {
   )
 }
 
-function currentDomainStrength(
+function scoreProfile(
   bookmark: BookmarkItem,
-  profiles: FolderProfile[],
-  ancestorIds: Set<string>,
-): number {
-  return profiles
-    .filter((profile) => ancestorIds.has(profile.folder.id))
-    .reduce((strongest, profile) =>
-      Math.max(strongest, profile.domainCounts.get(bookmark.domain) ?? 0), 0)
+  bookmarkTitleTokens: Set<string>,
+  profile: FolderProfile,
+): ProfileMatch {
+  const domainCount = profile.domainCounts.get(bookmark.domain) ?? 0
+  const domainConcentration = profile.bookmarkCount > 0 ? domainCount / profile.bookmarkCount : 0
+  const folderMatches = profile.titleTokens.filter((folderToken) =>
+    [...bookmarkTitleTokens].some((titleToken) =>
+      titleToken === folderToken || (folderToken.length >= 4 && titleToken.startsWith(folderToken)),
+    ),
+  )
+  let score = 0
+  let reason = ''
+  let matchedByDomain = false
+  let matchedByKeyword = false
+
+  if (!isContentPlatform(bookmark.domain)
+    && domainCount >= 2
+    && domainConcentration >= 0.5) {
+    score = domainCount >= 3 ? 0.94 : 0.9
+    reason = `${domainCount} bookmark${domainCount === 1 ? '' : 's'} from ${bookmark.domain} already live in this folder.`
+    matchedByDomain = true
+  }
+
+  if (folderMatches.length > 0) {
+    const keywordScore = Math.min(0.9, 0.82 + (folderMatches.length - 1) * 0.04)
+    matchedByKeyword = true
+    if (keywordScore > score) {
+      score = keywordScore
+      reason = `The bookmark matches the folder keyword “${folderMatches[0]}”.`
+    }
+  }
+
+  return { profile, score, reason, matchedByDomain, matchedByKeyword }
 }
 
-export function classifyBookmarks(
+export function classifyBookmarksWithDiagnostics(
   nodes: BookmarkNode[],
   cleanupSuggestions: CleanupSuggestion[],
-): CleanupSuggestion[] {
+): { suggestions: CleanupSuggestion[]; diagnostics: ClassificationDiagnostics } {
   const { profiles, byId } = buildProfiles(nodes)
   const cleanupTargets = new Set(cleanupSuggestions.map((suggestion) => suggestion.targetId))
   const unavailableFolders = new Set(
@@ -103,54 +141,69 @@ export function classifyBookmarks(
       .map((suggestion) => suggestion.targetId),
   )
   const suggestions: CleanupSuggestion[] = []
+  const diagnostics: ClassificationDiagnostics = {
+    candidateFolders: profiles.filter((profile) => profile.titleTokens.length > 0).length,
+    bookmarksVisited: 0,
+    skippedCleanupTargets: 0,
+    bookmarksAlreadyInMeaningfulFolder: 0,
+    eligibleForClassification: 0,
+    eligibleContentPlatformBookmarks: 0,
+    bookmarksWithDomainCandidates: 0,
+    bookmarksWithKeywordCandidates: 0,
+    skippedNoCandidate: 0,
+    skippedTopScoreTie: 0,
+    skippedCurrentPlacementAsGoodOrBetter: 0,
+    suggestionsCreated: 0,
+  }
 
   for (const bookmark of nodes.filter((node): node is BookmarkItem => node.type === 'bookmark')) {
-    if (cleanupTargets.has(bookmark.id)) continue
+    diagnostics.bookmarksVisited += 1
+    if (cleanupTargets.has(bookmark.id)) {
+      diagnostics.skippedCleanupTargets += 1
+      continue
+    }
     const ancestorIds = new Set(ancestorFolderIds(bookmark, byId))
     const userAncestors = profiles.filter((profile) => ancestorIds.has(profile.folder.id))
-    if (userAncestors.some((profile) => profile.titleTokens.length > 0)) continue
+    const meaningfulAncestors = userAncestors.filter((profile) => profile.titleTokens.length > 0)
+    if (meaningfulAncestors.length > 0) diagnostics.bookmarksAlreadyInMeaningfulFolder += 1
+    diagnostics.eligibleForClassification += 1
+    if (isContentPlatform(bookmark.domain)) diagnostics.eligibleContentPlatformBookmarks += 1
     const bookmarkTitleTokens = new Set(tokens(bookmark.title))
-    const currentStrength = currentDomainStrength(bookmark, profiles, ancestorIds)
-    const candidates: Array<{ profile: FolderProfile; score: number; reason: string }> = []
+    const currentScore = meaningfulAncestors.reduce((strongest, profile) =>
+      Math.max(strongest, scoreProfile(bookmark, bookmarkTitleTokens, profile).score), 0)
+    const candidates: ProfileMatch[] = []
+    let hasDomainCandidate = false
+    let hasKeywordCandidate = false
 
     for (const profile of profiles) {
       if (profile.titleTokens.length === 0
         || ancestorIds.has(profile.folder.id)
         || unavailableFolders.has(profile.folder.id)) continue
-      const domainCount = profile.domainCounts.get(bookmark.domain) ?? 0
-      const domainConcentration = profile.bookmarkCount > 0 ? domainCount / profile.bookmarkCount : 0
-      const folderMatches = profile.titleTokens.filter((folderToken) =>
-        [...bookmarkTitleTokens].some((titleToken) =>
-          titleToken === folderToken || (folderToken.length >= 4 && titleToken.startsWith(folderToken)),
-        ),
-      )
-      let score = 0
-      let reason = ''
-
-      if (!isContentPlatform(bookmark.domain)
-        && domainCount >= 2
-        && domainCount > currentStrength
-        && domainConcentration >= 0.5) {
-        score = domainCount >= 3 ? 0.94 : 0.9
-        reason = `${domainCount} bookmark${domainCount === 1 ? '' : 's'} from ${bookmark.domain} already live in this folder.`
-      }
-
-      if (folderMatches.length > 0) {
-        const keywordScore = Math.min(0.9, 0.82 + (folderMatches.length - 1) * 0.04)
-        if (keywordScore > score) {
-          score = keywordScore
-          reason = `The bookmark matches the folder keyword “${folderMatches[0]}”.`
-        }
-      }
-
-      if (score >= 0.8) candidates.push({ profile, score, reason })
+      const match = scoreProfile(bookmark, bookmarkTitleTokens, profile)
+      if (match.matchedByDomain) hasDomainCandidate = true
+      if (match.matchedByKeyword) hasKeywordCandidate = true
+      if (match.score >= 0.8) candidates.push(match)
     }
+
+    if (hasDomainCandidate) diagnostics.bookmarksWithDomainCandidates += 1
+    if (hasKeywordCandidate) diagnostics.bookmarksWithKeywordCandidates += 1
 
     candidates.sort((left, right) => right.score - left.score
       || left.profile.folder.id.localeCompare(right.profile.folder.id))
     const best = candidates[0]
-    if (!best) continue
-    if (candidates[1]?.score === best.score) continue
+    if (!best) {
+      diagnostics.skippedNoCandidate += 1
+      continue
+    }
+    if (candidates[1]?.score === best.score) {
+      diagnostics.skippedTopScoreTie += 1
+      continue
+    }
+    if (meaningfulAncestors.length > 0
+      && best.score < currentScore + MIN_DESTINATION_ADVANTAGE) {
+      diagnostics.skippedCurrentPlacementAsGoodOrBetter += 1
+      continue
+    }
     suggestions.push({
       id: `move:${bookmark.id}:${best.profile.folder.id}`,
       kind: 'move-bookmark',
@@ -159,10 +212,26 @@ export function classifyBookmarks(
       groupKey: `move:${best.profile.folder.id}`,
       before: bookmark,
       confidence: best.score,
-      reasons: [best.reason, 'This suggestion reuses an existing folder.'],
+      reasons: [
+        best.reason,
+        meaningfulAncestors.length > 0
+          ? 'This existing folder is a meaningfully stronger match than the current location.'
+          : 'This suggestion reuses an existing folder.',
+      ],
       selected: false,
     })
+    diagnostics.suggestionsCreated += 1
   }
 
-  return suggestions.sort((left, right) => left.id.localeCompare(right.id))
+  return {
+    suggestions: suggestions.sort((left, right) => left.id.localeCompare(right.id)),
+    diagnostics,
+  }
+}
+
+export function classifyBookmarks(
+  nodes: BookmarkNode[],
+  cleanupSuggestions: CleanupSuggestion[],
+): CleanupSuggestion[] {
+  return classifyBookmarksWithDiagnostics(nodes, cleanupSuggestions).suggestions
 }
