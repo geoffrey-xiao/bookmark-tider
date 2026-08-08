@@ -12,6 +12,8 @@ import {
 import type { OperationBatch } from '../../types/operations'
 import '../shared.css'
 
+const SHOW_READ_ONLY_DIAGNOSTICS = false
+
 function fullPath(node: BookmarkNode): string {
   return [...node.path, node.title || '(untitled)'].join(' / ')
 }
@@ -298,7 +300,7 @@ export function Manager() {
             <div className="stat stat-accent"><strong>{result.summary.classificationSuggestions}</strong><span>Folder suggestions</span></div>
           </section>
 
-          <Diagnostics result={result} />
+          {SHOW_READ_ONLY_DIAGNOSTICS && <Diagnostics result={result} />}
 
           <section className="card section-card">
             <div className="section-heading">
