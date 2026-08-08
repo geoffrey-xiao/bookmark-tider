@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from 'react'
+import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { runtimeAdapter } from '../../chrome/runtimeAdapter'
 import type { BookmarkItem, BookmarkNode, BookmarkScanResult, CleanupSuggestion } from '../../types/bookmarks'
@@ -102,6 +102,96 @@ function BatchSummary({ batch, undoing, onUndo }: {
   )
 }
 
+function ApplyConfirmation({
+  suggestions,
+  applying,
+  onCancel,
+  onConfirm,
+}: {
+  suggestions: CleanupSuggestion[]
+  applying: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  const moves = suggestions.filter((suggestion) => suggestion.kind === 'move-bookmark').length
+  const duplicateDeletions = suggestions.filter((suggestion) => suggestion.kind === 'delete-duplicate').length
+  const emptyFolderDeletions = suggestions.filter((suggestion) => suggestion.kind === 'delete-empty-folder').length
+  const deletionCount = duplicateDeletions + emptyFolderDeletions
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    cancelButtonRef.current?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !applying) onCancel()
+      if (event.key !== 'Tab') return
+
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
+      if (!focusable?.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [applying, onCancel])
+
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !applying) onCancel()
+      }}
+    >
+      <section
+        ref={dialogRef}
+        className="confirmation-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="apply-confirmation-title"
+        aria-describedby="apply-confirmation-description"
+      >
+        <span className="eyebrow">Final review</span>
+        <h2 id="apply-confirmation-title">Apply {suggestions.length} reviewed change{suggestions.length === 1 ? '' : 's'}?</h2>
+        <p id="apply-confirmation-description">
+          A snapshot will be saved before anything changes. Every target will also be checked again.
+        </p>
+        <dl className="confirmation-summary">
+          <div><dt>Bookmarks moved</dt><dd>{moves}</dd></div>
+          <div><dt>Duplicates deleted</dt><dd>{duplicateDeletions}</dd></div>
+          <div><dt>Empty folders deleted</dt><dd>{emptyFolderDeletions}</dd></div>
+        </dl>
+        {deletionCount > 0 && (
+          <p className="confirmation-warning">
+            This batch includes {deletionCount} deletion{deletionCount === 1 ? '' : 's'}. You can undo the latest completed batch.
+          </p>
+        )}
+        <div className="modal-actions">
+          <button ref={cancelButtonRef} type="button" className="secondary-button" onClick={onCancel} disabled={applying}>
+            Cancel
+          </button>
+          <button type="button" className={deletionCount > 0 ? 'danger-button' : ''} onClick={onConfirm} disabled={applying}>
+            {applying ? 'Applying…' : `Apply ${suggestions.length} change${suggestions.length === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 function BookmarkRow({ bookmark }: { bookmark: BookmarkItem }) {
   return (
     <li className="bookmark-row">
@@ -167,6 +257,8 @@ export function Manager() {
   const [applying, setApplying] = useState(false)
   const [undoing, setUndoing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingSuggestions, setPendingSuggestions] = useState<CleanupSuggestion[] | null>(null)
+  const reviewButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     void runtimeAdapter
@@ -176,6 +268,10 @@ export function Manager() {
       })
       .catch(() => setError('Saved operation history is temporarily unavailable. Scanning is still safe.'))
   }, [])
+
+  useEffect(() => {
+    if (!pendingSuggestions) reviewButtonRef.current?.focus()
+  }, [pendingSuggestions])
 
   const bookmarks = useMemo(() => {
     if (!result) return []
@@ -219,14 +315,14 @@ export function Manager() {
     })
   }
 
-  const applySelected = async () => {
+  const openApplyConfirmation = () => {
     if (!result || selectedIds.size === 0) return
-    const suggestions = result.suggestions.filter((suggestion) => selectedIds.has(suggestion.id))
-    const confirmed = window.confirm(
-      `Apply ${suggestions.length} reviewed change${suggestions.length === 1 ? '' : 's'}? A snapshot will be saved first.`,
-    )
-    if (!confirmed) return
+    setPendingSuggestions(result.suggestions.filter((suggestion) => selectedIds.has(suggestion.id)))
+  }
 
+  const applySelected = async () => {
+    if (!pendingSuggestions) return
+    const suggestions = pendingSuggestions
     setApplying(true)
     setError(null)
     try {
@@ -245,6 +341,7 @@ export function Manager() {
       setError(applyError instanceof Error ? applyError.message : 'The operation batch could not be applied.')
     } finally {
       setApplying(false)
+      setPendingSuggestions(null)
     }
   }
 
@@ -366,8 +463,8 @@ export function Manager() {
                 <strong>{selectedIds.size} selected</strong>
                 <span>Nothing changes until you confirm. Every target is checked again first.</span>
               </div>
-              <button type="button" onClick={applySelected} disabled={selectedIds.size === 0 || applying || loading}>
-                {applying ? 'Applying…' : 'Apply reviewed changes'}
+              <button ref={reviewButtonRef} type="button" onClick={openApplyConfirmation} disabled={selectedIds.size === 0 || applying || loading}>
+                Apply reviewed changes
               </button>
             </div>
           )}
@@ -396,6 +493,15 @@ export function Manager() {
             ) : <p>No bookmarks match this search.</p>}
           </section>
         </>
+      )}
+
+      {pendingSuggestions && (
+        <ApplyConfirmation
+          suggestions={pendingSuggestions}
+          applying={applying}
+          onCancel={() => setPendingSuggestions(null)}
+          onConfirm={applySelected}
+        />
       )}
     </main>
   )
