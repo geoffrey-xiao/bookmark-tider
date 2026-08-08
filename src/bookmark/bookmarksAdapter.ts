@@ -1,6 +1,7 @@
+import type { BookmarkTreeSource } from '../types/bookmarks'
+
 export const bookmarksAdapter = {
-  async getTree(): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
+  async getTree(): Promise<BookmarkTreeSource[]> {
     return chrome.bookmarks.getTree()
   },
 }
-

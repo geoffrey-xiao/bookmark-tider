@@ -1,5 +1,4 @@
-import { bookmarksAdapter } from '../bookmark/bookmarksAdapter'
-import { summarizeTree } from '../bookmark/summarizeTree'
+import { scanBookmarks } from '../bookmark/scanBookmarks'
 import { runtimeAdapter } from '../chrome/runtimeAdapter'
 import { MESSAGE_VERSION, type AppRequest, type AppResponse } from '../types/messages'
 
@@ -15,7 +14,7 @@ chrome.runtime.onMessage.addListener(
           await runtimeAdapter.openTab(runtimeAdapter.managerUrl())
           return { ok: true, data: null }
         case 'SCAN_BOOKMARKS':
-          return { ok: true, data: summarizeTree(await bookmarksAdapter.getTree()) }
+          return { ok: true, data: await scanBookmarks() }
         default:
           return { ok: false, error: { code: 'UNKNOWN_MESSAGE', message: 'Unknown message type.' } }
       }
@@ -31,4 +30,3 @@ chrome.runtime.onMessage.addListener(
     return true
   },
 )
-
