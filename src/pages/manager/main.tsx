@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
+import { StrictMode, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createRoot } from 'react-dom/client'
 import { runtimeAdapter } from '../../chrome/runtimeAdapter'
 import type { BookmarkItem, BookmarkNode, BookmarkScanResult, CleanupSuggestion } from '../../types/bookmarks'
@@ -63,10 +63,11 @@ function IssueCard({
   )
 }
 
-function BatchSummary({ batch, undoing, onUndo }: {
+function BatchSummary({ batch, undoing, onUndo, undoButtonRef }: {
   batch: OperationBatch
   undoing: boolean
   onUndo: () => void
+  undoButtonRef: RefObject<HTMLButtonElement | null>
 }) {
   const succeeded = batch.operations.filter((operation) => operation.status === 'success').length
   const failed = batch.operations.filter((operation) => operation.status === 'failed').length
@@ -96,7 +97,7 @@ function BatchSummary({ batch, undoing, onUndo }: {
         )}
       </div>
       {canUndo && (
-        <button type="button" className="secondary-button" onClick={onUndo} disabled={undoing}>
+        <button ref={undoButtonRef} type="button" className="secondary-button" onClick={onUndo} disabled={undoing}>
           {undoing ? 'Undoing…' : 'Undo latest batch'}
         </button>
       )}
@@ -104,31 +105,28 @@ function BatchSummary({ batch, undoing, onUndo }: {
   )
 }
 
-function ApplyConfirmation({
-  suggestions,
-  applying,
+function ConfirmationDialog({
+  busy,
+  labelledBy,
+  describedBy,
   onCancel,
-  onConfirm,
+  children,
 }: {
-  suggestions: CleanupSuggestion[]
-  applying: boolean
+  busy: boolean
+  labelledBy: string
+  describedBy: string
   onCancel: () => void
-  onConfirm: () => void
+  children: ReactNode
 }) {
   const dialogRef = useRef<HTMLElement>(null)
-  const cancelButtonRef = useRef<HTMLButtonElement>(null)
-  const moves = suggestions.filter((suggestion) => suggestion.kind === 'move-bookmark').length
-  const duplicateDeletions = suggestions.filter((suggestion) => suggestion.kind === 'delete-duplicate').length
-  const emptyFolderDeletions = suggestions.filter((suggestion) => suggestion.kind === 'delete-empty-folder').length
-  const deletionCount = duplicateDeletions + emptyFolderDeletions
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    cancelButtonRef.current?.focus()
+    dialogRef.current?.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !applying) onCancel()
+      if (event.key === 'Escape' && !busy) onCancel()
       if (event.key !== 'Tab') return
 
       const focusable = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
@@ -149,13 +147,13 @@ function ApplyConfirmation({
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [applying, onCancel])
+  }, [busy, onCancel])
 
   return (
     <div
       className="modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !applying) onCancel()
+        if (event.target === event.currentTarget && !busy) onCancel()
       }}
     >
       <section
@@ -163,34 +161,116 @@ function ApplyConfirmation({
         className="confirmation-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="apply-confirmation-title"
-        aria-describedby="apply-confirmation-description"
+        aria-labelledby={labelledBy}
+        aria-describedby={describedBy}
       >
-        <span className="eyebrow">Final review</span>
-        <h2 id="apply-confirmation-title">Apply {suggestions.length} reviewed change{suggestions.length === 1 ? '' : 's'}?</h2>
-        <p id="apply-confirmation-description">
-          A snapshot will be saved before anything changes. Every target will also be checked again.
-        </p>
-        <dl className="confirmation-summary">
-          <div><dt>Bookmarks moved</dt><dd>{moves}</dd></div>
-          <div><dt>Duplicates deleted</dt><dd>{duplicateDeletions}</dd></div>
-          <div><dt>Empty folders deleted</dt><dd>{emptyFolderDeletions}</dd></div>
-        </dl>
-        {deletionCount > 0 && (
-          <p className="confirmation-warning">
-            This batch includes {deletionCount} deletion{deletionCount === 1 ? '' : 's'}. You can undo the latest completed batch.
-          </p>
-        )}
-        <div className="modal-actions">
-          <button ref={cancelButtonRef} type="button" className="secondary-button" onClick={onCancel} disabled={applying}>
-            Cancel
-          </button>
-          <button type="button" className={deletionCount > 0 ? 'danger-button' : ''} onClick={onConfirm} disabled={applying}>
-            {applying ? 'Applying…' : `Apply ${suggestions.length} change${suggestions.length === 1 ? '' : 's'}`}
-          </button>
-        </div>
+        {children}
       </section>
     </div>
+  )
+}
+
+function ApplyConfirmation({
+  suggestions,
+  applying,
+  onCancel,
+  onConfirm,
+}: {
+  suggestions: CleanupSuggestion[]
+  applying: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const moves = suggestions.filter((suggestion) => suggestion.kind === 'move-bookmark').length
+  const duplicateDeletions = suggestions.filter((suggestion) => suggestion.kind === 'delete-duplicate').length
+  const emptyFolderDeletions = suggestions.filter((suggestion) => suggestion.kind === 'delete-empty-folder').length
+  const deletionCount = duplicateDeletions + emptyFolderDeletions
+
+  return (
+    <ConfirmationDialog
+      busy={applying}
+      labelledBy="apply-confirmation-title"
+      describedBy="apply-confirmation-description"
+      onCancel={onCancel}
+    >
+      <span className="eyebrow">Final review</span>
+      <h2 id="apply-confirmation-title">Apply {suggestions.length} reviewed change{suggestions.length === 1 ? '' : 's'}?</h2>
+      <p id="apply-confirmation-description">
+        A snapshot will be saved before anything changes. Every target will also be checked again.
+      </p>
+      <dl className="confirmation-summary">
+        <div><dt>Bookmarks moved</dt><dd>{moves}</dd></div>
+        <div><dt>Duplicates deleted</dt><dd>{duplicateDeletions}</dd></div>
+        <div><dt>Empty folders deleted</dt><dd>{emptyFolderDeletions}</dd></div>
+      </dl>
+      {deletionCount > 0 && (
+        <p className="confirmation-warning">
+          This batch includes {deletionCount} deletion{deletionCount === 1 ? '' : 's'}. You can undo the latest completed batch.
+        </p>
+      )}
+      <div className="modal-actions">
+        <button type="button" className="secondary-button" onClick={onCancel} disabled={applying}>
+          Cancel
+        </button>
+        <button type="button" className={deletionCount > 0 ? 'danger-button' : ''} onClick={onConfirm} disabled={applying}>
+          {applying ? 'Applying…' : `Apply ${suggestions.length} change${suggestions.length === 1 ? '' : 's'}`}
+        </button>
+      </div>
+    </ConfirmationDialog>
+  )
+}
+
+function UndoConfirmation({
+  batch,
+  undoing,
+  onCancel,
+  onConfirm,
+}: {
+  batch: OperationBatch
+  undoing: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const reversible = batch.operations.filter((operation) =>
+    operation.status === 'success' && operation.undoStatus !== 'success',
+  )
+  const moves = reversible.filter((operation) => operation.kind === 'move').length
+  const bookmarks = reversible.filter((operation) =>
+    operation.kind === 'delete' && operation.before.type === 'bookmark',
+  ).length
+  const folders = reversible.filter((operation) =>
+    operation.kind === 'delete' && operation.before.type === 'folder',
+  ).length
+
+  return (
+    <ConfirmationDialog
+      busy={undoing}
+      labelledBy="undo-confirmation-title"
+      describedBy="undo-confirmation-description"
+      onCancel={onCancel}
+    >
+      <span className="eyebrow">Confirm undo</span>
+      <h2 id="undo-confirmation-title">Undo {reversible.length} completed change{reversible.length === 1 ? '' : 's'}?</h2>
+      <p id="undo-confirmation-description">
+        Only successful operations from the latest batch will be reversed. Failed and skipped operations will remain unchanged.
+      </p>
+      <dl className="confirmation-summary">
+        <div><dt>Bookmarks moved back</dt><dd>{moves}</dd></div>
+        <div><dt>Bookmarks restored</dt><dd>{bookmarks}</dd></div>
+        <div><dt>Folders restored</dt><dd>{folders}</dd></div>
+      </dl>
+      <p className="confirmation-warning">
+        If a bookmark changed again after this batch, that item may be skipped to protect the newer change.
+      </p>
+      <div className="modal-actions">
+        <button type="button" className="secondary-button" onClick={onCancel} disabled={undoing}>
+          Cancel
+        </button>
+        <button type="button" onClick={onConfirm} disabled={undoing}>
+          {undoing ? 'Undoing…' : 'Undo latest batch'}
+        </button>
+      </div>
+    </ConfirmationDialog>
   )
 }
 
@@ -260,7 +340,9 @@ export function Manager() {
   const [undoing, setUndoing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingSuggestions, setPendingSuggestions] = useState<CleanupSuggestion[] | null>(null)
+  const [pendingUndoBatch, setPendingUndoBatch] = useState<OperationBatch | null>(null)
   const reviewButtonRef = useRef<HTMLButtonElement>(null)
+  const undoButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     void runtimeAdapter
@@ -274,6 +356,10 @@ export function Manager() {
   useEffect(() => {
     if (!pendingSuggestions) reviewButtonRef.current?.focus()
   }, [pendingSuggestions])
+
+  useEffect(() => {
+    if (!pendingUndoBatch) undoButtonRef.current?.focus()
+  }, [pendingUndoBatch])
 
   const bookmarks = useMemo(() => {
     if (!result) return []
@@ -348,6 +434,7 @@ export function Manager() {
   }
 
   const undoLatest = async () => {
+    if (!pendingUndoBatch) return
     setUndoing(true)
     setError(null)
     try {
@@ -362,6 +449,7 @@ export function Manager() {
       setError(undoError instanceof Error ? undoError.message : 'The latest batch could not be undone.')
     } finally {
       setUndoing(false)
+      setPendingUndoBatch(null)
     }
   }
 
@@ -379,7 +467,14 @@ export function Manager() {
       </header>
 
       {error && <p className="alert error" role="alert">{error}</p>}
-      {latestBatch && <BatchSummary batch={latestBatch} undoing={undoing} onUndo={undoLatest} />}
+      {latestBatch && (
+        <BatchSummary
+          batch={latestBatch}
+          undoing={undoing}
+          onUndo={() => setPendingUndoBatch(latestBatch)}
+          undoButtonRef={undoButtonRef}
+        />
+      )}
 
       {!result ? (
         <section className="card empty-state">
@@ -503,6 +598,14 @@ export function Manager() {
           applying={applying}
           onCancel={() => setPendingSuggestions(null)}
           onConfirm={applySelected}
+        />
+      )}
+      {pendingUndoBatch && (
+        <UndoConfirmation
+          batch={pendingUndoBatch}
+          undoing={undoing}
+          onCancel={() => setPendingUndoBatch(null)}
+          onConfirm={undoLatest}
         />
       )}
     </main>
