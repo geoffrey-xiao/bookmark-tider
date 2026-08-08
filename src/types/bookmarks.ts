@@ -4,6 +4,7 @@ export type BookmarkTreeSource = {
   id: string
   title: string
   url?: string
+  parentId?: string
   index?: number
   dateAdded?: number
   children?: BookmarkTreeSource[]
@@ -42,7 +43,7 @@ export type BookmarkIndexes = {
 
 export type CleanupSuggestion = {
   id: string
-  kind: 'delete-duplicate' | 'delete-empty-folder'
+  kind: 'delete-duplicate' | 'delete-empty-folder' | 'move-bookmark'
   targetId: string
   groupKey: string
   before: BookmarkNode
@@ -51,6 +52,7 @@ export type CleanupSuggestion = {
   selected: false
   duplicateType?: 'exact' | 'normalized'
   keepId?: string
+  targetFolderId?: string
 }
 
 export type ScanSummary = {

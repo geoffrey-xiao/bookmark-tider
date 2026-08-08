@@ -1,21 +1,38 @@
-import { StrictMode, useMemo, useState } from 'react'
+import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { runtimeAdapter } from '../../chrome/runtimeAdapter'
 import type { BookmarkItem, BookmarkNode, BookmarkScanResult, CleanupSuggestion } from '../../types/bookmarks'
-import { MESSAGE_VERSION, type ScanResponse } from '../../types/messages'
+import {
+  MESSAGE_VERSION,
+  type ApplyResponse,
+  type LatestBatchResult,
+  type ScanResponse,
+  type UndoResponse,
+} from '../../types/messages'
+import type { OperationBatch } from '../../types/operations'
 import '../shared.css'
 
 function fullPath(node: BookmarkNode): string {
   return [...node.path, node.title || '(untitled)'].join(' / ')
 }
 
-function IssueCard({ suggestion, result }: { suggestion: CleanupSuggestion; result: BookmarkScanResult }) {
+function IssueCard({
+  suggestion,
+  result,
+  selected,
+  onToggle,
+}: {
+  suggestion: CleanupSuggestion
+  result: BookmarkScanResult
+  selected: boolean
+  onToggle: () => void
+}) {
   const keeper = suggestion.keepId
     ? result.nodes[result.indexes.byId[suggestion.keepId]]
     : null
 
   return (
-    <article className="issue-card">
+    <article className={`issue-card ${selected ? 'issue-selected' : ''}`}>
       <div className="issue-heading">
         <span className={`badge ${suggestion.duplicateType === 'normalized' ? 'badge-caution' : ''}`}>
           {suggestion.kind === 'delete-empty-folder'
@@ -29,7 +46,38 @@ function IssueCard({ suggestion, result }: { suggestion: CleanupSuggestion; resu
       {suggestion.before.type === 'bookmark' && <code>{suggestion.before.url}</code>}
       {keeper && <p className="keeper">Keep: {fullPath(keeper)}</p>}
       <p>{suggestion.reasons[0]}</p>
+      <label className="select-control">
+        <input type="checkbox" checked={selected} onChange={onToggle} />
+        Include in review batch
+      </label>
     </article>
+  )
+}
+
+function BatchSummary({ batch, undoing, onUndo }: {
+  batch: OperationBatch
+  undoing: boolean
+  onUndo: () => void
+}) {
+  const succeeded = batch.operations.filter((operation) => operation.status === 'success').length
+  const failed = batch.operations.filter((operation) => operation.status === 'failed').length
+  const skipped = batch.operations.filter((operation) => operation.status === 'skipped').length
+  const canUndo = batch.status !== 'undone'
+    && batch.operations.some((operation) => operation.status === 'success' && operation.undoStatus !== 'success')
+
+  return (
+    <section className="card batch-card" aria-live="polite">
+      <div>
+        <span className="eyebrow">Latest operation batch</span>
+        <h2 className="batch-title">{batch.status.replace('-', ' ')}</h2>
+        <p>{succeeded} succeeded · {failed} failed · {skipped} skipped</p>
+      </div>
+      {canUndo && (
+        <button type="button" className="secondary-button" onClick={onUndo} disabled={undoing}>
+          {undoing ? 'Undoing…' : 'Undo latest batch'}
+        </button>
+      )}
+    </section>
   )
 }
 
@@ -48,8 +96,20 @@ function BookmarkRow({ bookmark }: { bookmark: BookmarkItem }) {
 export function Manager() {
   const [result, setResult] = useState<BookmarkScanResult | null>(null)
   const [query, setQuery] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [latestBatch, setLatestBatch] = useState<OperationBatch | null>(null)
   const [loading, setLoading] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [undoing, setUndoing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void runtimeAdapter
+      .send<LatestBatchResult>({ version: MESSAGE_VERSION, type: 'GET_LATEST_BATCH' })
+      .then((response) => {
+        if (response.ok) setLatestBatch(response.data)
+      })
+  }, [])
 
   const bookmarks = useMemo(() => {
     if (!result) return []
@@ -70,7 +130,10 @@ export function Manager() {
     setError(null)
     try {
       const response = await runtimeAdapter.send<ScanResponse>({ version: MESSAGE_VERSION, type: 'SCAN_BOOKMARKS' })
-      if (response.ok) setResult(response.data)
+      if (response.ok) {
+        setResult(response.data)
+        setSelectedIds(new Set())
+      }
       else setError(response.error.message)
     } catch (scanError) {
       setError(scanError instanceof Error ? scanError.message : 'The extension worker is unavailable. Reload and try again.')
@@ -79,13 +142,69 @@ export function Manager() {
     }
   }
 
+  const toggleSuggestion = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const applySelected = async () => {
+    if (!result || selectedIds.size === 0) return
+    const suggestions = result.suggestions.filter((suggestion) => selectedIds.has(suggestion.id))
+    const confirmed = window.confirm(
+      `Apply ${suggestions.length} reviewed change${suggestions.length === 1 ? '' : 's'}? A snapshot will be saved first.`,
+    )
+    if (!confirmed) return
+
+    setApplying(true)
+    setError(null)
+    try {
+      const response = await runtimeAdapter.send<ApplyResponse>({
+        version: MESSAGE_VERSION,
+        type: 'APPLY_SUGGESTIONS',
+        suggestions,
+      })
+      if (response.ok) {
+        setLatestBatch(response.data)
+        await scan()
+      } else {
+        setError(response.error.message)
+      }
+    } catch (applyError) {
+      setError(applyError instanceof Error ? applyError.message : 'The operation batch could not be applied.')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const undoLatest = async () => {
+    setUndoing(true)
+    setError(null)
+    try {
+      const response = await runtimeAdapter.send<UndoResponse>({ version: MESSAGE_VERSION, type: 'UNDO_LATEST_BATCH' })
+      if (response.ok) {
+        setLatestBatch(response.data)
+        await scan()
+      } else {
+        setError(response.error.message)
+      }
+    } catch (undoError) {
+      setError(undoError instanceof Error ? undoError.message : 'The latest batch could not be undone.')
+    } finally {
+      setUndoing(false)
+    }
+  }
+
   return (
     <main className="shell">
       <header className="page-header">
         <div>
-          <span className="eyebrow">Day 1 · Read-only analysis</span>
+          <span className="eyebrow">Day 2 · Review, apply, undo</span>
           <h1>Bookmark Tidy</h1>
-          <p>Scan your library and review potential issues. This version cannot modify bookmarks.</p>
+          <p>Scanning is read-only. Only suggestions you select and explicitly confirm can modify bookmarks.</p>
         </div>
         <button type="button" onClick={scan} disabled={loading}>
           {loading ? 'Scanning…' : result ? 'Scan again' : 'Scan bookmarks'}
@@ -93,12 +212,13 @@ export function Manager() {
       </header>
 
       {error && <p className="alert error" role="alert">{error}</p>}
+      {latestBatch && <BatchSummary batch={latestBatch} undoing={undoing} onUndo={undoLatest} />}
 
       {!result ? (
         <section className="card empty-state">
           <div className="empty-icon" aria-hidden="true">✓</div>
           <h2>Analysis stays separate from changes</h2>
-          <p>The scanner only reads your bookmark tree. Cleanup actions will require a separate review step.</p>
+          <p>The scanner only reads your bookmark tree. Every selected change is revalidated and snapshotted before execution.</p>
         </section>
       ) : (
         <>
@@ -115,7 +235,7 @@ export function Manager() {
                 <span className="eyebrow">Cleanup findings</span>
                 <h2>{result.suggestions.length} suggestions to review</h2>
               </div>
-              <span className="read-only-pill">Read only</span>
+              <span className="read-only-pill">Review required</span>
             </div>
 
             {result.suggestions.length === 0 ? (
@@ -123,11 +243,34 @@ export function Manager() {
             ) : (
               <div className="issues-grid">
                 {duplicateSuggestions.map((suggestion) => (
-                  <IssueCard key={suggestion.id} suggestion={suggestion} result={result} />
+                  <IssueCard
+                    key={suggestion.id}
+                    suggestion={suggestion}
+                    result={result}
+                    selected={selectedIds.has(suggestion.id)}
+                    onToggle={() => toggleSuggestion(suggestion.id)}
+                  />
                 ))}
                 {emptyFolderSuggestions.map((suggestion) => (
-                  <IssueCard key={suggestion.id} suggestion={suggestion} result={result} />
+                  <IssueCard
+                    key={suggestion.id}
+                    suggestion={suggestion}
+                    result={result}
+                    selected={selectedIds.has(suggestion.id)}
+                    onToggle={() => toggleSuggestion(suggestion.id)}
+                  />
                 ))}
+              </div>
+            )}
+            {result.suggestions.length > 0 && (
+              <div className="review-bar">
+                <div>
+                  <strong>{selectedIds.size} selected</strong>
+                  <span>Nothing changes until you confirm.</span>
+                </div>
+                <button type="button" onClick={applySelected} disabled={selectedIds.size === 0 || applying || loading}>
+                  {applying ? 'Applying…' : 'Apply reviewed changes'}
+                </button>
               </div>
             )}
           </section>

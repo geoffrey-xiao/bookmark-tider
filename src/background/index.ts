@@ -1,5 +1,8 @@
+import { bookmarksAdapter } from '../bookmark/bookmarksAdapter'
+import { executeSuggestions, undoBatch } from '../bookmark/operationEngine'
 import { scanBookmarks } from '../bookmark/scanBookmarks'
 import { runtimeAdapter } from '../chrome/runtimeAdapter'
+import { operationStore } from '../storage/operationStore'
 import { MESSAGE_VERSION, type AppRequest, type AppResponse } from '../types/messages'
 
 chrome.runtime.onMessage.addListener(
@@ -15,6 +18,32 @@ chrome.runtime.onMessage.addListener(
           return { ok: true, data: null }
         case 'SCAN_BOOKMARKS':
           return { ok: true, data: await scanBookmarks() }
+        case 'APPLY_SUGGESTIONS':
+          if (request.suggestions.length === 0) {
+            return { ok: false, error: { code: 'EMPTY_BATCH', message: 'Select at least one suggestion.' } }
+          }
+          return {
+            ok: true,
+            data: await executeSuggestions(request.suggestions, {
+              bookmarks: bookmarksAdapter,
+              store: operationStore,
+            }),
+          }
+        case 'GET_LATEST_BATCH':
+          return { ok: true, data: await operationStore.getLatestBatch() }
+        case 'UNDO_LATEST_BATCH': {
+          const latestBatch = await operationStore.getLatestBatch()
+          if (!latestBatch) {
+            return { ok: false, error: { code: 'NO_BATCH', message: 'There is no batch to undo.' } }
+          }
+          return {
+            ok: true,
+            data: await undoBatch(latestBatch, {
+              bookmarks: bookmarksAdapter,
+              store: operationStore,
+            }),
+          }
+        }
         default:
           return { ok: false, error: { code: 'UNKNOWN_MESSAGE', message: 'Unknown message type.' } }
       }

@@ -16,11 +16,11 @@
 
 ### Day 2：安全写入闭环
 
-- [ ] D2-01 Suggestion、Operation、Batch 和 Snapshot 类型。
-- [ ] D2-02 Bookmarks/Storage Adapter 与 schema 版本。
-- [ ] D2-03 统一 Review UI，删除默认不选中。
-- [ ] D2-04 执行前验证和唯一 Operation Engine。
-- [ ] D2-05 最近批次持久化与移动/删除 Undo。
+- [x] D2-01 Suggestion、Operation、Batch 和 Snapshot 类型。
+- [x] D2-02 Bookmarks/Storage Adapter 与 schema 版本。
+- [x] D2-03 统一 Review UI，删除默认不选中。
+- [x] D2-04 执行前验证和唯一 Operation Engine。
+- [x] D2-05 最近批次持久化与移动/删除 Undo。
 
 ### Day 3：分类与发布候选
 
