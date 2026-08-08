@@ -7,13 +7,19 @@ import type {
 
 const GENERIC_FOLDER_WORDS = new Set([
   'bookmark', 'bookmarks', 'favorite', 'favorites', 'folder', 'links',
-  'misc', 'miscellaneous', 'other', 'uncategorized', '收藏', '书签', '未分类',
+  'inbox', 'misc', 'miscellaneous', 'other', 'uncategorized', 'unsorted', '收藏', '书签', '未分类',
 ])
+
+const CONTENT_PLATFORM_DOMAINS = [
+  'bilibili.com', 'blog.csdn.net', 'dev.to', 'github.com', 'gitlab.com',
+  'juejin.cn', 'medium.com', 'stackoverflow.com', 'youtube.com', 'zhihu.com',
+]
 
 type FolderProfile = {
   folder: BookmarkFolder
   titleTokens: string[]
   domainCounts: Map<string, number>
+  bookmarkCount: number
 }
 
 function tokens(value: string): string[] {
@@ -51,6 +57,7 @@ function buildProfiles(nodes: BookmarkNode[]): {
       folder,
       titleTokens: tokens(folder.title),
       domainCounts: new Map<string, number>(),
+      bookmarkCount: 0,
     }))
   const profileById = new Map(profiles.map((profile) => [profile.folder.id, profile]))
 
@@ -59,11 +66,18 @@ function buildProfiles(nodes: BookmarkNode[]): {
     for (const folderId of ancestorFolderIds(bookmark, byId)) {
       const profile = profileById.get(folderId)
       if (!profile) continue
+      profile.bookmarkCount += 1
       profile.domainCounts.set(bookmark.domain, (profile.domainCounts.get(bookmark.domain) ?? 0) + 1)
     }
   }
 
   return { profiles, byId }
+}
+
+function isContentPlatform(domain: string): boolean {
+  return CONTENT_PLATFORM_DOMAINS.some((platform) =>
+    domain === platform || domain.endsWith(`.${platform}`),
+  )
 }
 
 function currentDomainStrength(
@@ -93,19 +107,31 @@ export function classifyBookmarks(
   for (const bookmark of nodes.filter((node): node is BookmarkItem => node.type === 'bookmark')) {
     if (cleanupTargets.has(bookmark.id)) continue
     const ancestorIds = new Set(ancestorFolderIds(bookmark, byId))
-    const bookmarkTextTokens = new Set(tokens(`${bookmark.title} ${bookmark.domain} ${bookmark.url}`))
+    const userAncestors = profiles.filter((profile) => ancestorIds.has(profile.folder.id))
+    if (userAncestors.some((profile) => profile.titleTokens.length > 0)) continue
+    const bookmarkTitleTokens = new Set(tokens(bookmark.title))
     const currentStrength = currentDomainStrength(bookmark, profiles, ancestorIds)
-    let best: { profile: FolderProfile; score: number; reason: string } | null = null
+    const candidates: Array<{ profile: FolderProfile; score: number; reason: string }> = []
 
     for (const profile of profiles) {
-      if (ancestorIds.has(profile.folder.id) || unavailableFolders.has(profile.folder.id)) continue
+      if (profile.titleTokens.length === 0
+        || ancestorIds.has(profile.folder.id)
+        || unavailableFolders.has(profile.folder.id)) continue
       const domainCount = profile.domainCounts.get(bookmark.domain) ?? 0
-      const folderMatches = profile.titleTokens.filter((token) => bookmarkTextTokens.has(token))
+      const domainConcentration = profile.bookmarkCount > 0 ? domainCount / profile.bookmarkCount : 0
+      const folderMatches = profile.titleTokens.filter((folderToken) =>
+        [...bookmarkTitleTokens].some((titleToken) =>
+          titleToken === folderToken || (folderToken.length >= 4 && titleToken.startsWith(folderToken)),
+        ),
+      )
       let score = 0
       let reason = ''
 
-      if (domainCount > currentStrength) {
-        score = domainCount >= 2 ? 0.94 : 0.86
+      if (!isContentPlatform(bookmark.domain)
+        && domainCount >= 2
+        && domainCount > currentStrength
+        && domainConcentration >= 0.5) {
+        score = domainCount >= 3 ? 0.94 : 0.9
         reason = `${domainCount} bookmark${domainCount === 1 ? '' : 's'} from ${bookmark.domain} already live in this folder.`
       }
 
@@ -117,13 +143,14 @@ export function classifyBookmarks(
         }
       }
 
-      if (score >= 0.8 && (!best || score > best.score
-        || (score === best.score && profile.folder.id.localeCompare(best.profile.folder.id) < 0))) {
-        best = { profile, score, reason }
-      }
+      if (score >= 0.8) candidates.push({ profile, score, reason })
     }
 
+    candidates.sort((left, right) => right.score - left.score
+      || left.profile.folder.id.localeCompare(right.profile.folder.id))
+    const best = candidates[0]
     if (!best) continue
+    if (candidates[1]?.score === best.score) continue
     suggestions.push({
       id: `move:${bookmark.id}:${best.profile.folder.id}`,
       kind: 'move-bookmark',
@@ -139,4 +166,3 @@ export function classifyBookmarks(
 
   return suggestions.sort((left, right) => left.id.localeCompare(right.id))
 }
-

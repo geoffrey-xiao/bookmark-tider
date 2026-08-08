@@ -15,8 +15,8 @@ function classificationTree(): BookmarkTreeSource[] {
           id: '10',
           title: 'Development',
           children: [
-            { id: '100', title: 'GitHub project A', url: 'https://github.com/acme/a' },
-            { id: '101', title: 'GitHub project B', url: 'https://github.com/acme/b' },
+            { id: '100', title: 'Project docs A', url: 'https://docs.acme.test/a' },
+            { id: '101', title: 'Project docs B', url: 'https://docs.acme.test/b' },
           ],
         },
         {
@@ -28,7 +28,7 @@ function classificationTree(): BookmarkTreeSource[] {
           id: '12',
           title: 'Unsorted',
           children: [
-            { id: '120', title: 'Another repository', url: 'https://github.com/acme/c' },
+            { id: '120', title: 'Another project', url: 'https://docs.acme.test/c' },
             { id: '121', title: 'Latest News digest', url: 'https://digest.example/today' },
           ],
         },
@@ -45,7 +45,7 @@ describe('classifyBookmarks', () => {
     expect(moves).toContainEqual(expect.objectContaining({
       targetId: '120',
       targetFolderId: '10',
-      confidence: 0.94,
+      confidence: 0.9,
       selected: false,
     }))
     expect(moves).toContainEqual(expect.objectContaining({
@@ -65,5 +65,41 @@ describe('classifyBookmarks', () => {
     expect(movedIds).not.toContain('100')
     expect(movedIds).not.toContain('101')
   })
-})
 
+  it('does not reorganize bookmarks already placed in a meaningful user folder', () => {
+    const tree = classificationTree()
+    tree[0].children?.[0].children?.find((folder) => folder.id === '11')?.children?.push({
+      id: '111',
+      title: 'Development weekly news',
+      url: 'https://weekly.example/development',
+    })
+
+    const result = analyzeBookmarks(scanBookmarkTree(tree))
+    expect(result.suggestions).not.toContainEqual(expect.objectContaining({
+      kind: 'move-bookmark',
+      targetId: '111',
+    }))
+  })
+
+  it('does not use broad content-platform domains as folder intent', () => {
+    const tree = classificationTree()
+    const bar = tree[0].children?.[0]
+    bar?.children?.push({
+      id: '13',
+      title: 'Projects',
+      children: [
+        { id: '130', title: 'Repository one', url: 'https://github.com/acme/one' },
+        { id: '131', title: 'Repository two', url: 'https://github.com/acme/two' },
+      ],
+    })
+    bar?.children?.find((folder) => folder.id === '12')?.children?.push(
+      { id: '122', title: 'Unrelated repository', url: 'https://github.com/acme/three' },
+    )
+
+    const result = analyzeBookmarks(scanBookmarkTree(tree))
+    expect(result.suggestions).not.toContainEqual(expect.objectContaining({
+      kind: 'move-bookmark',
+      targetId: '122',
+    }))
+  })
+})
