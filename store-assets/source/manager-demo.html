@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookmark Tidy — Store Screenshot</title>
+    <link rel="stylesheet" href="/src/pages/shared.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="page-header">
+        <div>
+          <span class="eyebrow">v0.1 · Scan, organize, undo</span>
+          <h1>Bookmark Tidy</h1>
+          <p>Scanning is read-only. Only suggestions you select and explicitly confirm can modify bookmarks.</p>
+        </div>
+        <button type="button">Scan again</button>
+      </header>
+
+      <section class="stats stats-five" aria-label="Library overview">
+        <div class="stat"><strong>248</strong><span>Bookmarks</span></div>
+        <div class="stat"><strong>18</strong><span>Folders</span></div>
+        <div class="stat stat-accent"><strong>3</strong><span>Duplicate groups</span></div>
+        <div class="stat stat-accent"><strong>2</strong><span>Empty folders</span></div>
+        <div class="stat stat-accent"><strong>6</strong><span>Folder suggestions</span></div>
+      </section>
+
+      <section class="card section-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Cleanup findings</span>
+            <h2>5 cleanup suggestions</h2>
+          </div>
+          <span class="read-only-pill">Review required</span>
+        </div>
+
+        <div class="issues-grid">
+          <article class="issue-card issue-selected">
+            <div class="issue-heading">
+              <span class="badge">Exact duplicate</span>
+              <span class="confidence">100% confidence</span>
+            </div>
+            <strong>Project documentation</strong>
+            <span class="path">Bookmarks bar / Work / Project documentation</span>
+            <code>https://docs.example.com/project</code>
+            <p class="keeper">Keep: Bookmarks bar / Projects / Project documentation</p>
+            <p>Same URL and title as the bookmark kept in Projects.</p>
+            <label class="select-control">
+              <input type="checkbox" checked />
+              Include in review batch
+            </label>
+          </article>
+
+          <article class="issue-card">
+            <div class="issue-heading">
+              <span class="badge badge-caution">Normalized duplicate</span>
+              <span class="confidence">95% confidence</span>
+            </div>
+            <strong>Design resources</strong>
+            <span class="path">Bookmarks bar / Reading / Design resources</span>
+            <code>https://design.example.com/resources?utm_source=weekly</code>
+            <p class="keeper">Keep: Bookmarks bar / Design / Design resources</p>
+            <p>Matches after removing tracking parameters.</p>
+            <label class="select-control">
+              <input type="checkbox" />
+              Include in review batch
+            </label>
+          </article>
+        </div>
+
+        <div class="review-bar sticky-review">
+          <div><strong>1 suggestion selected</strong><span>Nothing changes until you review and confirm.</span></div>
+          <button type="button">Review selected changes</button>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
