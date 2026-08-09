@@ -225,7 +225,7 @@ describe('operationEngine', () => {
     })
   })
 
-  it('recovers the outcome of an operation interrupted after Chrome applied it', async () => {
+  it('recovers the outcome of an operation interrupted after the browser applied it', async () => {
     const bookmarks = new MemoryBookmarks(sourceNodes())
     const batch = await executeSuggestions([deleteSuggestion()], dependencies(bookmarks))
     const persistedDuringExecution: OperationBatch = {

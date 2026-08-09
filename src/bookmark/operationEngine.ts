@@ -142,7 +142,7 @@ export async function undoBatch(
   const uncertain = batch.operations.filter((operation) => operation.status === 'executing')
   for (const operation of uncertain) {
     operation.undoStatus = 'skipped'
-    operation.undoError = 'This operation was interrupted while Chrome was changing the bookmark; verify it manually.'
+    operation.undoError = 'This operation was interrupted while the browser was changing the bookmark; verify it manually.'
   }
   const reversible = [...batch.operations].reverse().filter((operation) => operation.status === 'success')
 
