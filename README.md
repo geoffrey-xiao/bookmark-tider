@@ -49,3 +49,7 @@ npm run build
 All Chrome API access belongs behind an adapter. Analysis modules only output suggestions; bookmark writes belong exclusively to the operation engine.
 
 Product and engineering plans are under `bookmark_tidy_docs/`.
+
+## Privacy
+
+Bookmark Tidy processes bookmark data locally and does not send it to a server. See the [privacy policy](docs/privacy-policy.md) for details about accessed information, local storage, retention, and user controls.

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Privacy policy for the Bookmark Tidy Chrome extension." />
+    <title>Bookmark Tidy Privacy Policy</title>
+    <style>
+      :root { color: #17202a; background: #f5f6f8; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(100% - 32px, 820px); margin: 40px auto; border: 1px solid #e1e5eb; border-radius: 18px; padding: clamp(24px, 5vw, 52px); background: white; box-shadow: 0 12px 40px rgb(30 45 80 / 7%); }
+      h1 { margin: 0 0 8px; font-size: clamp(30px, 5vw, 44px); letter-spacing: -.035em; }
+      h2 { margin: 32px 0 10px; font-size: 21px; letter-spacing: -.015em; }
+      p, li { color: #4f5b70; line-height: 1.7; }
+      ul { padding-left: 24px; }
+      code { border-radius: 5px; padding: 2px 5px; background: #eef1ff; }
+      a { color: #3659d9; }
+      .effective-date { margin-top: 0; color: #66738a; font-weight: 650; }
+      .limited-use { border: 1px solid #cad4ff; border-radius: 12px; padding: 16px 18px; background: #f7f8ff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Bookmark Tidy Privacy Policy</h1>
+      <p class="effective-date">Effective date: August 9, 2026</p>
+      <p>Bookmark Tidy is a Chrome extension that helps users scan, review, organize, and undo changes to their Chrome bookmarks. This policy explains what information the extension accesses, how it is used, and how it is stored.</p>
+
+      <h2>Information Bookmark Tidy accesses</h2>
+      <p>When you choose to scan your bookmarks, Bookmark Tidy accesses the bookmark tree provided by the Chrome Bookmarks API. This can include:</p>
+      <ul>
+        <li>bookmark titles and URLs;</li>
+        <li>folder names and folder structure;</li>
+        <li>bookmark and folder identifiers;</li>
+        <li>bookmark position and ordering;</li>
+        <li>bookmark creation timestamps, when Chrome provides them; and</li>
+        <li>derived information such as normalized URLs, domains, duplicate groups, and organization suggestions.</li>
+      </ul>
+      <p>Bookmark Tidy does not request access to webpage contents, browsing history, passwords, cookies, authentication information, payment information, or personal communications.</p>
+
+      <h2>How the information is used</h2>
+      <p>Bookmark information is used only to provide Bookmark Tidy's user-facing features:</p>
+      <ul>
+        <li>scan the bookmark library;</li>
+        <li>identify duplicate bookmarks and empty folders;</li>
+        <li>suggest bookmark organization changes;</li>
+        <li>display proposed changes for review;</li>
+        <li>apply only the changes the user explicitly selects and confirms; and</li>
+        <li>undo successful operations from the latest batch.</li>
+      </ul>
+      <p>Bookmark Tidy does not use bookmark information for advertising, profiling, credit decisions, or any unrelated purpose.</p>
+
+      <h2>Local processing and storage</h2>
+      <p>Bookmark analysis is performed locally in the extension on the user's device.</p>
+      <p>To provide the undo feature, Bookmark Tidy stores the latest operation batch in <code>chrome.storage.local</code>. That record can contain bookmark metadata associated with the reviewed operation, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. The latest record remains in local extension storage until it is replaced by a later batch, the extension's local data is cleared through Chrome, or the extension is uninstalled.</p>
+
+      <h2>Data transmission and sharing</h2>
+      <p>Bookmark Tidy does not transmit bookmark information or operation records to the developer or to external servers. It does not include analytics, telemetry, advertising services, or other third-party data services.</p>
+      <p>Bookmark Tidy does not sell, rent, share, or otherwise transfer user data to third parties.</p>
+
+      <h2>Permissions</h2>
+      <p>Bookmark Tidy requests only these Chrome permissions:</p>
+      <ul>
+        <li><strong><code>bookmarks</code>:</strong> used to read the bookmark tree, show cleanup and organization suggestions, apply user-confirmed changes, and restore affected bookmarks during undo.</li>
+        <li><strong><code>storage</code>:</strong> used to save the latest operation batch locally so the user can review results and undo that batch.</li>
+      </ul>
+
+      <h2>User choices and control</h2>
+      <p>Scanning begins only when the user selects the scan action. Scanning itself does not modify bookmarks. Bookmark changes require the user to select suggestions and confirm the batch before it is applied.</p>
+      <p>Users can remove Bookmark Tidy's locally stored operation record by clearing the extension's data through Chrome or uninstalling the extension. Uninstalling Bookmark Tidy does not reverse bookmark changes that were already applied.</p>
+
+      <h2>Security</h2>
+      <p>Bookmark Tidy keeps handled bookmark information within the extension and Chrome's local extension storage. Because the extension does not transmit this information, it does not send bookmark data over a network. Users should still protect access to their device and Chrome profile.</p>
+
+      <h2>Limited Use disclosure</h2>
+      <div class="limited-use">
+        <p>Bookmark Tidy's use of information obtained from Chrome APIs is limited to providing and improving its single purpose: helping users safely scan, review, organize, and undo changes to their bookmarks.</p>
+        <p><strong>The use of information received from Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use requirements.</strong></p>
+      </div>
+
+      <h2>Children's privacy</h2>
+      <p>Bookmark Tidy is a general productivity tool and is not directed to children under 13. The extension does not knowingly collect personal information from children.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>This policy may be updated when Bookmark Tidy's functionality or data practices change. The effective date at the top of this page will be revised when an update is published. Material changes will be disclosed as required by applicable Chrome Web Store policies.</p>
+
+      <h2>Contact</h2>
+      <p>Questions or concerns about this privacy policy can be submitted through the <a href="https://github.com/geoffrey-xiao/bookmark-tider/issues">Bookmark Tidy GitHub issue tracker</a>.</p>
+    </main>
+  </body>
+</html>
