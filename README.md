@@ -15,6 +15,20 @@ Then open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
 
 During development, run `npm run dev` for page work. Rebuild before reloading the unpacked extension when testing the service worker or manifest.
 
+## Browser-specific release builds
+
+The default build targets the Chrome Web Store. The Edge build uses the same application code but replaces the generated manifest description with Microsoft Edge-specific listing text.
+
+```sh
+# Chrome: creates release/bookmark-tidy-chrome-0.1.0.zip
+npm run package:chrome
+
+# Microsoft Edge: creates release/bookmark-tidy-edge-0.1.0.zip
+npm run package:edge
+```
+
+To test the Edge build before packaging, run `npm run build:edge`, open `edge://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`.
+
 ## v0.1 safety check
 
 Before using the extension on a real library, create a dedicated test folder with duplicate bookmarks, an empty subfolder, and a bookmark that can be moved to another existing folder. Then:
@@ -55,3 +69,5 @@ Product and engineering plans are under `bookmark_tidy_docs/`.
 Bookmark Tidy processes bookmark data locally and does not send it to a server. See the [privacy policy](docs/privacy-policy.md) for details about accessed information, local storage, retention, and user controls.
 
 Release managers can use the [Chrome Web Store submission guide](docs/chrome-web-store-submission.md) for listing copy, privacy disclosures, reviewer instructions, distribution settings, and packaging checks.
+
+For Microsoft Edge Add-ons, use the [Edge submission guide](docs/edge-add-ons-submission.md) and the dedicated [Edge privacy policy](docs/privacy-policy-edge.html).

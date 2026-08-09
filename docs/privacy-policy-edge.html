@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Privacy policy for the Bookmark Tidy Microsoft Edge extension." />
+    <title>Bookmark Tidy Privacy Policy for Microsoft Edge</title>
+    <style>
+      :root { color: #17202a; background: #f5f6f8; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(100% - 32px, 820px); margin: 40px auto; border: 1px solid #e1e5eb; border-radius: 18px; padding: clamp(24px, 5vw, 52px); background: white; box-shadow: 0 12px 40px rgb(30 45 80 / 7%); }
+      h1 { margin: 0 0 8px; font-size: clamp(30px, 5vw, 44px); letter-spacing: -.035em; }
+      h2 { margin: 32px 0 10px; font-size: 21px; letter-spacing: -.015em; }
+      p, li { color: #4f5b70; line-height: 1.7; }
+      ul { padding-left: 24px; }
+      code { border-radius: 5px; padding: 2px 5px; background: #eef1ff; }
+      a { color: #3659d9; }
+      .effective-date { margin-top: 0; color: #66738a; font-weight: 650; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Bookmark Tidy Privacy Policy</h1>
+      <p class="effective-date">Effective date: August 9, 2026</p>
+      <p>Bookmark Tidy is a Microsoft Edge extension that helps users scan, review, organize, and undo changes to their Microsoft Edge favorites. This policy explains what information the extension accesses, how it is used, and how it is stored.</p>
+
+      <h2>Information Bookmark Tidy accesses</h2>
+      <p>When you choose to scan your favorites, Bookmark Tidy accesses the favorites tree provided by the Microsoft Edge Bookmarks API. This can include:</p>
+      <ul>
+        <li>favorite titles and URLs;</li>
+        <li>folder names and folder structure;</li>
+        <li>favorite and folder identifiers;</li>
+        <li>favorite position and ordering;</li>
+        <li>favorite creation timestamps, when Microsoft Edge provides them; and</li>
+        <li>derived information such as normalized URLs, domains, duplicate groups, and organization suggestions.</li>
+      </ul>
+      <p>Bookmark Tidy does not request access to webpage contents, browsing history, passwords, cookies, authentication information, payment information, or personal communications.</p>
+
+      <h2>How the information is used</h2>
+      <p>Favorite information is used only to provide Bookmark Tidy's user-facing features:</p>
+      <ul>
+        <li>scan the favorites library;</li>
+        <li>identify duplicate favorites and empty folders;</li>
+        <li>suggest favorite organization changes;</li>
+        <li>display proposed changes for review;</li>
+        <li>apply only the changes the user explicitly selects and confirms; and</li>
+        <li>undo successful operations from the latest batch.</li>
+      </ul>
+      <p>Bookmark Tidy does not use favorite information for advertising, profiling, credit decisions, or any unrelated purpose.</p>
+
+      <h2>Local processing and storage</h2>
+      <p>Favorites analysis is performed locally in the extension on the user's device.</p>
+      <p>To provide the undo feature, Bookmark Tidy stores the latest operation batch in <code>chrome.storage.local</code>. Microsoft Edge uses this Chromium-compatible API to store data locally within the extension. That record can contain favorite metadata associated with the reviewed operation, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. The latest record remains in local extension storage until it is replaced by a later batch, the extension's local data is cleared through Microsoft Edge, or the extension is uninstalled.</p>
+
+      <h2>Data transmission and sharing</h2>
+      <p>Bookmark Tidy does not transmit favorite information or operation records to the developer or to external servers. It does not include analytics, telemetry, advertising services, or other third-party data services.</p>
+      <p>Bookmark Tidy does not sell, rent, share, or otherwise transfer user data to third parties.</p>
+
+      <h2>Permissions</h2>
+      <p>Bookmark Tidy requests only these Microsoft Edge extension permissions:</p>
+      <ul>
+        <li><strong><code>bookmarks</code>:</strong> used to read the favorites tree, show cleanup and organization suggestions, apply user-confirmed changes, and restore affected favorites during undo.</li>
+        <li><strong><code>storage</code>:</strong> used to save the latest operation batch locally so the user can review results and undo that batch.</li>
+      </ul>
+
+      <h2>User choices and control</h2>
+      <p>Scanning begins only when the user selects the scan action. Scanning itself does not modify favorites. Favorite changes require the user to select suggestions and confirm the batch before it is applied.</p>
+      <p>Users can remove Bookmark Tidy's locally stored operation record by clearing the extension's data through Microsoft Edge or uninstalling the extension. Uninstalling Bookmark Tidy does not reverse favorite changes that were already applied.</p>
+
+      <h2>Security</h2>
+      <p>Bookmark Tidy keeps handled favorite information within the extension and Microsoft Edge's local extension storage. Because the extension does not transmit this information, it does not send favorite data over a network. Users should still protect access to their device and Microsoft Edge profile.</p>
+
+      <h2>Single-purpose disclosure</h2>
+      <p>Bookmark Tidy uses information obtained from Microsoft Edge extension APIs only to provide its single purpose: helping users safely scan, review, organize, and undo changes to their favorites.</p>
+
+      <h2>Children's privacy</h2>
+      <p>Bookmark Tidy is a general productivity tool and is not directed to children under 13. The extension does not knowingly collect personal information from children.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>This policy may be updated when Bookmark Tidy's functionality or data practices change. The effective date at the top of this page will be revised when an update is published. Material changes will be disclosed as required by applicable Microsoft Edge Add-ons policies.</p>
+
+      <h2>Contact</h2>
+      <p>Questions or concerns about this privacy policy can be submitted through the <a href="https://github.com/geoffrey-xiao/bookmark-tider/issues">Bookmark Tidy GitHub issue tracker</a>.</p>
+    </main>
+  </body>
+</html>

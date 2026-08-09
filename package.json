@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:edge": "npm run build && node scripts/apply-edge-manifest.mjs",
+    "package:chrome": "npm run build && node scripts/package-extension.mjs chrome",
+    "package:edge": "npm run build:edge && node scripts/package-extension.mjs edge",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
@@ -32,4 +35,3 @@
     "vitest": "latest"
   }
 }
-
