@@ -53,3 +53,5 @@ Product and engineering plans are under `bookmark_tidy_docs/`.
 ## Privacy
 
 Bookmark Tidy processes bookmark data locally and does not send it to a server. See the [privacy policy](docs/privacy-policy.md) for details about accessed information, local storage, retention, and user controls.
+
+Release managers can use the [Chrome Web Store submission guide](docs/chrome-web-store-submission.md) for listing copy, privacy disclosures, reviewer instructions, distribution settings, and packaging checks.
