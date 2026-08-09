@@ -71,3 +71,5 @@ Bookmark Tidy processes bookmark data locally and does not send it to a server. 
 Release managers can use the [Chrome Web Store submission guide](docs/chrome-web-store-submission.md) for listing copy, privacy disclosures, reviewer instructions, distribution settings, and packaging checks.
 
 For Microsoft Edge Add-ons, use the [Edge submission guide](docs/edge-add-ons-submission.md) and the dedicated [Edge privacy policy](docs/privacy-policy-edge.html).
+
+For the complete browser-specific development, validation, branching, packaging, submission, and certification workflow, use the [development and release guide](docs/development-and-release-guide.md).
