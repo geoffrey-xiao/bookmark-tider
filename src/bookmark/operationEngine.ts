@@ -133,6 +133,18 @@ function restoreDetails(before: BookmarkNode): {
   }
 }
 
+async function restoreDeletedNode(
+  before: BookmarkNode,
+  bookmarks: BookmarksAdapter,
+): Promise<BookmarkTreeSource> {
+  const details = restoreDetails(before)
+  const siblings = await bookmarks.getChildren(details.parentId)
+  return bookmarks.create({
+    ...details,
+    index: Math.min(details.index, siblings.length),
+  })
+}
+
 export async function undoBatch(
   batch: OperationBatch,
   dependencies: OperationDependencies,
@@ -166,7 +178,7 @@ export async function undoBatch(
           operation.undoStatus = 'success'
         }
       } else {
-        const restored = await dependencies.bookmarks.create(restoreDetails(operation.before))
+        const restored = await restoreDeletedNode(operation.before, dependencies.bookmarks)
         operation.restoredId = restored.id
         operation.undoStatus = 'success'
       }

@@ -101,9 +101,23 @@ class MemoryBookmarks implements BookmarksAdapter {
   }
   async remove(id: string): Promise<void> {
     if (id === this.failRemoveId) throw new Error('Synthetic remove failure')
+    const removed = this.nodes.get(id)
     this.nodes.delete(id)
+    if (!removed?.parentId || removed.index === undefined) return
+    for (const [nodeId, node] of this.nodes) {
+      if (node.parentId === removed.parentId && (node.index ?? 0) > removed.index) {
+        this.nodes.set(nodeId, { ...node, index: (node.index ?? 0) - 1 })
+      }
+    }
   }
   async create(details: { parentId: string; index: number; title: string; url?: string }): Promise<BookmarkTreeSource> {
+    const siblings = await this.getChildren(details.parentId)
+    if (details.index > siblings.length) throw new Error('Index out of bounds')
+    for (const sibling of siblings) {
+      if ((sibling.index ?? 0) >= details.index) {
+        this.nodes.set(sibling.id, { ...sibling, index: (sibling.index ?? 0) + 1 })
+      }
+    }
     const created = { ...details, id: `restored-${this.nextId++}` }
     this.nodes.set(created.id, created)
     return created
@@ -223,6 +237,52 @@ describe('operationEngine', () => {
       parentId: sourceFolder.id,
       index: bookmark.index,
     })
+  })
+
+  it('restores adjacent deletions in their original order when later indexes are temporarily unavailable', async () => {
+    const duplicate: BookmarkItem = {
+      ...bookmark,
+      id: 'bookmark-2',
+      index: 1,
+    }
+    const emptyFolder: BookmarkFolder = {
+      ...sourceFolder,
+      id: 'empty-folder',
+      title: 'Empty',
+      index: 2,
+      childIds: [],
+    }
+    const bookmarks = new MemoryBookmarks([
+      ...sourceNodes(),
+      {
+        id: duplicate.id,
+        title: duplicate.title,
+        url: duplicate.url,
+        parentId: duplicate.parentId ?? undefined,
+        index: duplicate.index,
+      },
+      {
+        id: emptyFolder.id,
+        title: emptyFolder.title,
+        parentId: emptyFolder.parentId ?? undefined,
+        index: emptyFolder.index,
+      },
+    ])
+    const deps = dependencies(bookmarks)
+
+    const batch = await executeSuggestions(
+      [deleteSuggestion(duplicate), emptyFolderSuggestion(emptyFolder)],
+      deps,
+    )
+    const undone = await undoBatch(batch, deps)
+
+    expect(undone.status).toBe('undone')
+    const restoredDuplicateId = undone.operations[0].restoredId
+    const restoredFolderId = undone.operations[1].restoredId
+    expect(restoredDuplicateId).toBeDefined()
+    expect(restoredFolderId).toBeDefined()
+    expect(await bookmarks.get(restoredDuplicateId!)).toMatchObject({ index: 1 })
+    expect(await bookmarks.get(restoredFolderId!)).toMatchObject({ index: 2 })
   })
 
   it('recovers the outcome of an operation interrupted after the browser applied it', async () => {
