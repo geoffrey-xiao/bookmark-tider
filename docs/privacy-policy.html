@@ -23,7 +23,7 @@
   <body>
     <main>
       <h1>Bookmark Tidy Privacy Policy</h1>
-      <p class="effective-date">Effective date: August 12, 2026</p>
+      <p class="effective-date">Effective date: August 13, 2026</p>
       <p>Bookmark Tidy is a Chrome extension that helps users scan, review, organize, and undo changes to their Chrome bookmarks. This policy explains what information the extension accesses, how it is used, and how it is stored.</p>
 
       <h2>Information Bookmark Tidy accesses</h2>
@@ -51,11 +51,21 @@
       <p>Bookmark Tidy does not use bookmark information for advertising, profiling, credit decisions, or any unrelated purpose.</p>
 
       <h2>Local processing and storage</h2>
-      <p>Bookmark analysis is performed locally in the extension on the user's device.</p>
+      <p>Duplicate detection, empty-folder detection, and rule-based classification are performed locally in the extension on the user's device.</p>
       <p>To provide operation history and undo, Bookmark Tidy stores up to 50 operation batches in <code>chrome.storage.local</code>. These records can contain bookmark metadata associated with reviewed operations, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. Older records are removed as the bounded history fills. The remaining records stay in local extension storage until the extension's local data is cleared through Chrome or the extension is uninstalled.</p>
 
+      <h2>Optional AI classification</h2>
+      <p>AI classification is disabled by default. If the user enables it, supplies their own OpenAI API key, and selects <strong>Run AI classification</strong>, Bookmark Tidy sends a minimized batch directly to OpenAI so the model can suggest an existing destination folder.</p>
+      <ul>
+        <li>Domain-only mode sends opaque per-request references, bookmark domains, and existing folder names.</li>
+        <li>Title-and-domain mode additionally sends bookmark titles and current folder names.</li>
+        <li>Full bookmark URLs, Chrome bookmark identifiers, and operation-history records are not sent.</li>
+        <li>AI results remain unselected until the user reviews and confirms them.</li>
+      </ul>
+      <p>The user's OpenAI API key is stored in <code>chrome.storage.local</code> and sent only to <code>api.openai.com</code> for authenticated requests.</p>
+
       <h2>Data transmission and sharing</h2>
-      <p>Bookmark Tidy does not transmit bookmark information or operation records to the developer or to external servers. It does not include analytics, telemetry, advertising services, or other third-party data services.</p>
+      <p>Bookmark Tidy does not transmit bookmark information or operation records to the developer. It does not include analytics, telemetry, or advertising services. Minimized bookmark fields are transmitted to OpenAI only through the explicit optional AI workflow described above.</p>
       <p>Bookmark Tidy does not sell, rent, share, or otherwise transfer user data to third parties.</p>
 
       <h2>Permissions</h2>
@@ -63,14 +73,15 @@
       <ul>
         <li><strong><code>bookmarks</code>:</strong> used to read the bookmark tree, show cleanup and organization suggestions, apply user-confirmed changes, and restore affected bookmarks during undo.</li>
         <li><strong><code>storage</code>:</strong> used to save bounded operation history locally so the user can review prior results and undo the newest eligible batch.</li>
+        <li><strong><code>https://api.openai.com/*</code> host access:</strong> used only for user-initiated AI classification requests.</li>
       </ul>
 
       <h2>User choices and control</h2>
-      <p>Scanning begins only when the user selects the scan action. Scanning itself does not modify bookmarks. Bookmark changes require the user to select suggestions and confirm the batch before it is applied.</p>
-      <p>Users can remove Bookmark Tidy's locally stored operation record by clearing the extension's data through Chrome or uninstalling the extension. Uninstalling Bookmark Tidy does not reverse bookmark changes that were already applied.</p>
+      <p>Scanning begins only when the user selects the scan action. AI transmission additionally requires AI to be enabled and the user to select the AI action. Bookmark changes require the user to select suggestions and confirm the batch before it is applied.</p>
+      <p>Users can remove a saved OpenAI key from AI settings. They can remove all locally stored operation records and settings by clearing the extension's data through Chrome or uninstalling the extension. Uninstalling Bookmark Tidy does not reverse bookmark changes that were already applied.</p>
 
       <h2>Security</h2>
-      <p>Bookmark Tidy keeps handled bookmark information within the extension and Chrome's local extension storage. Because the extension does not transmit this information, it does not send bookmark data over a network. Users should still protect access to their device and Chrome profile.</p>
+      <p>Bookmark Tidy keeps operation history within the extension and Chrome's local extension storage. Optional AI requests minimize transmitted fields and never include full bookmark URLs. Users should protect access to their device, Chrome profile, and locally stored OpenAI API key.</p>
 
       <h2>Limited Use disclosure</h2>
       <div class="limited-use">

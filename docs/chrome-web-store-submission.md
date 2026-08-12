@@ -31,14 +31,15 @@ Features:
 • Suggests moves into relevant existing folders.
 • Revalidates every selected target before applying a change.
 • Shows succeeded, failed, and skipped operation counts.
-• Stores the latest operation record locally to provide an undo path.
+• Stores up to 50 operation batches locally to provide history and an undo path.
+• Optionally uses AI to suggest an existing folder after explicit opt-in.
 
 Privacy:
-Bookmark Tidy accesses bookmark titles, URLs, folder structure, identifiers, ordering, and related metadata only to provide its bookmark-management features. Analysis runs locally on your device. Bookmark information is not transmitted to the developer or third parties, and the extension contains no analytics, advertising, or telemetry services.
+Bookmark Tidy accesses bookmark titles, URLs, folder structure, identifiers, ordering, and related metadata only to provide its bookmark-management features. Cleanup and rule-based analysis run locally. Optional, user-initiated AI classification sends minimized fields directly to OpenAI; full URLs and operation history are not sent. The extension contains no analytics, advertising, or developer telemetry.
 
-Bookmark Tidy uses only the Chrome bookmarks and storage permissions. It does not request access to webpage contents, browsing history, cookies, passwords, or authentication information.
+Bookmark Tidy uses the Chrome bookmarks and storage permissions plus host access to api.openai.com for optional AI requests. It does not request access to webpage contents, browsing history, cookies, passwords, or authentication information.
 
-Current v0.1 limitation: only the latest operation batch can be undone. Bookmarks recreated during undo receive new Chrome bookmark identifiers.
+Only the newest eligible apply batch can be undone. Bookmarks recreated during undo receive new Chrome bookmark identifiers.
 ```
 
 ### URLs
@@ -77,11 +78,17 @@ Required to read the user's bookmark tree, identify duplicates and organization 
 Required to store the latest operation batch in chrome.storage.local so the user can review results, recover an interrupted batch, and undo successful operations. The stored record remains on the user's device.
 ```
 
+**Host access: `https://api.openai.com/*`**
+
+```text
+Required only for optional AI classification explicitly initiated by the user with their own OpenAI API key. Requests send minimized bookmark fields and existing folder names; full bookmark URLs and operation history are not sent.
+```
+
 ### Remote code
 
 - Select **No, this extension does not use remote code**.
 - All JavaScript required by the extension is bundled in the uploaded package.
-- The extension makes no external network requests.
+- The optional AI feature makes data requests to `api.openai.com`; it does not download or execute remote code.
 
 ### User-data categories
 
@@ -100,11 +107,11 @@ Do **not** declare access to webpage content, precise location, authentication i
 Certify only while the implementation continues to match these statements:
 
 - Data is used only to provide or improve Bookmark Tidy's disclosed single purpose.
-- Data is not sold or transferred to third parties.
+- Data is not sold. Minimized fields are transferred to OpenAI only when the user explicitly runs AI classification.
 - Data is not used or transferred for purposes unrelated to the extension's single purpose.
 - Data is not used or transferred to determine creditworthiness or for lending.
 - Data is not used for personalized, retargeted, or interest-based advertising.
-- Humans are not allowed to read user bookmark data because it is not transmitted to the developer.
+- Bookmark data is not transmitted to the developer; optional OpenAI processing is disclosed in the privacy policy.
 - The extension complies with the Chrome Web Store User Data Policy, including Limited Use requirements.
 
 ### Privacy policy URL

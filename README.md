@@ -2,7 +2,7 @@
 
 A safety-first Chrome Manifest V3 extension for scanning, cleaning, and organizing bookmarks. The core product rule is: analyze first, review changes, then apply—with an undo path.
 
-v0.2 extends the completed [three-day MVP roadmap](bookmark_tidy_docs/Bookmark_Tidy_MVP_迭代路线图.md) with versioned local operation history. The larger engineering checklist remains the source backlog.
+v0.2 extends the completed [three-day MVP roadmap](bookmark_tidy_docs/Bookmark_Tidy_MVP_迭代路线图.md) with versioned local operation history and optional AI-assisted classification into existing folders. The larger engineering checklist remains the source backlog.
 
 ## Getting started
 
@@ -38,7 +38,9 @@ Before using the extension on a real library, create a dedicated test folder wit
 3. Apply the batch and verify its success, failure, and skipped counts.
 4. Choose **Undo latest batch** and confirm titles, URLs, parent folders, and ordering are restored. Deleted nodes are recreated with new Chrome IDs.
 
-v0.2 keeps up to 50 operation batches in `chrome.storage.local` and automatically migrates the v0.1 latest-batch record. Earlier batches are read-only; only the newest eligible apply batch can be undone, and that undo is saved as a separate batch. Bookmark data is never sent to a server.
+v0.2 keeps up to 50 operation batches in `chrome.storage.local` and automatically migrates the v0.1 latest-batch record. Earlier batches are read-only; only the newest eligible apply batch can be undone, and that undo is saved as a separate batch.
+
+AI classification is disabled by default and uses the user's own OpenAI API key. Domain-only mode sends opaque local references, bookmark domains, and existing folder names. The optional title-and-domain mode also sends bookmark titles and current folder names. Full bookmark URLs and operation history are never sent. AI output only creates unselected review suggestions; the existing confirmation and undo safeguards still apply.
 
 ## Quality commands
 
@@ -66,7 +68,7 @@ Product and engineering plans are under `bookmark_tidy_docs/`.
 
 ## Privacy
 
-Bookmark Tidy processes bookmark data locally and does not send it to a server. See the [privacy policy](docs/privacy-policy.md) for details about accessed information, local storage, retention, and user controls.
+Bookmark Tidy processes cleanup and rule-based classification locally. If the user explicitly enables AI classification, minimized bookmark fields are sent directly to OpenAI as described in the [privacy policy](docs/privacy-policy.md). The extension contains no analytics, advertising, or developer telemetry.
 
 Release managers can use the [Chrome Web Store submission guide](docs/chrome-web-store-submission.md) for listing copy, privacy disclosures, reviewer instructions, distribution settings, and packaging checks.
 

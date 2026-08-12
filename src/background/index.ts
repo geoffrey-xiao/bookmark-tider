@@ -1,8 +1,10 @@
 import { bookmarksAdapter } from '../bookmark/bookmarksAdapter'
+import { addAiClassifications } from '../ai/classifyBookmarks'
 import { executeSuggestions, recoverInterruptedBatch, undoBatch } from '../bookmark/operationEngine'
 import { scanBookmarks } from '../bookmark/scanBookmarks'
 import { runtimeAdapter } from '../chrome/runtimeAdapter'
 import { operationStore } from '../storage/operationStore'
+import { aiSettingsStore } from '../storage/aiSettingsStore'
 import { MESSAGE_VERSION, type AppRequest, type AppResponse } from '../types/messages'
 
 chrome.runtime.onMessage.addListener(
@@ -18,6 +20,29 @@ chrome.runtime.onMessage.addListener(
           return { ok: true, data: null }
         case 'SCAN_BOOKMARKS':
           return { ok: true, data: await scanBookmarks() }
+        case 'GET_AI_SETTINGS':
+          return { ok: true, data: await aiSettingsStore.get() }
+        case 'SAVE_AI_SETTINGS':
+          return { ok: true, data: await aiSettingsStore.save(request.settings) }
+        case 'CLASSIFY_WITH_AI': {
+          const settings = await aiSettingsStore.getApiConfiguration()
+          if (!settings.enabled) {
+            return { ok: false, error: { code: 'AI_DISABLED', message: 'Enable AI classification in settings first.' } }
+          }
+          if (!settings.apiKey) {
+            return { ok: false, error: { code: 'AI_KEY_MISSING', message: 'Add an OpenAI API key in AI settings first.' } }
+          }
+          const scan = await scanBookmarks()
+          return {
+            ok: true,
+            data: await addAiClassifications({
+              scan,
+              apiKey: settings.apiKey,
+              model: settings.model,
+              privacyMode: settings.privacyMode,
+            }),
+          }
+        }
         case 'APPLY_SUGGESTIONS':
           if (request.suggestions.length === 0) {
             return { ok: false, error: { code: 'EMPTY_BATCH', message: 'Select at least one suggestion.' } }

@@ -53,6 +53,36 @@ export type CleanupSuggestion = {
   duplicateType?: 'exact' | 'normalized'
   keepId?: string
   targetFolderId?: string
+  source?: 'local-rule' | 'ai'
+  model?: string
+}
+
+export type AiPrivacyMode = 'domain-only' | 'title-and-domain'
+
+export type AiSettings = {
+  enabled: boolean
+  model: string
+  privacyMode: AiPrivacyMode
+  hasApiKey: boolean
+}
+
+export type AiSettingsUpdate = Omit<AiSettings, 'hasApiKey'> & {
+  apiKey?: string
+  clearApiKey?: boolean
+}
+
+export type AiClassificationSummary = {
+  provider: 'openai'
+  model: string
+  privacyMode: AiPrivacyMode
+  bookmarksConsidered: number
+  bookmarksSent: number
+  suggestionsCreated: number
+  truncated: boolean
+}
+
+export type AiClassificationResult = BookmarkScanResult & {
+  ai: AiClassificationSummary
 }
 
 export type ScanSummary = {

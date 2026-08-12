@@ -1,4 +1,10 @@
-import type { BookmarkScanResult, CleanupSuggestion } from './bookmarks'
+import type {
+  AiClassificationResult,
+  AiSettings,
+  AiSettingsUpdate,
+  BookmarkScanResult,
+  CleanupSuggestion,
+} from './bookmarks'
 import type {
   ApplySuggestionsResponse,
   LatestBatchResponse,
@@ -11,12 +17,17 @@ export const MESSAGE_VERSION = 1 as const
 export type AppRequest =
   | { version: typeof MESSAGE_VERSION; type: 'OPEN_MANAGER' }
   | { version: typeof MESSAGE_VERSION; type: 'SCAN_BOOKMARKS' }
+  | { version: typeof MESSAGE_VERSION; type: 'CLASSIFY_WITH_AI' }
+  | { version: typeof MESSAGE_VERSION; type: 'GET_AI_SETTINGS' }
+  | { version: typeof MESSAGE_VERSION; type: 'SAVE_AI_SETTINGS'; settings: AiSettingsUpdate }
   | { version: typeof MESSAGE_VERSION; type: 'APPLY_SUGGESTIONS'; suggestions: CleanupSuggestion[] }
   | { version: typeof MESSAGE_VERSION; type: 'GET_LATEST_BATCH' }
   | { version: typeof MESSAGE_VERSION; type: 'GET_OPERATION_HISTORY' }
   | { version: typeof MESSAGE_VERSION; type: 'UNDO_LATEST_BATCH' }
 
 export type ScanResponse = BookmarkScanResult
+export type AiClassificationResponse = AiClassificationResult
+export type AiSettingsResponse = AiSettings
 export type ApplyResponse = ApplySuggestionsResponse
 export type LatestBatchResult = LatestBatchResponse
 export type OperationHistoryResult = OperationHistoryResponse

@@ -37,14 +37,15 @@ Features:
 • Suggests moves into relevant existing folders.
 • Revalidates every selected target before applying a change.
 • Shows succeeded, failed, and skipped operation counts.
-• Stores the latest operation record locally to provide an undo path.
+• Stores up to 50 operation batches locally to provide history and an undo path.
+• Optionally uses AI to suggest an existing folder after explicit opt-in.
 
 Privacy:
-Bookmark Tidy accesses favorite titles, URLs, folder structure, identifiers, ordering, and related metadata only to provide its favorites-management features. Analysis runs locally on your device. Favorite information is not transmitted to the developer or third parties, and the extension contains no analytics, advertising, or telemetry services.
+Bookmark Tidy accesses favorite titles, URLs, folder structure, identifiers, ordering, and related metadata only to provide its favorites-management features. Cleanup and rule-based analysis run locally. Optional, user-initiated AI classification sends minimized fields directly to OpenAI; full URLs and operation history are not sent. The extension contains no analytics, advertising, or developer telemetry.
 
-Bookmark Tidy uses only the Microsoft Edge bookmarks and storage permissions. It does not request access to webpage contents, browsing history, cookies, passwords, or authentication information.
+Bookmark Tidy uses the Microsoft Edge bookmarks and storage permissions plus host access to api.openai.com for optional AI requests. It does not request access to webpage contents, browsing history, cookies, passwords, or authentication information.
 
-Current v0.1 limitation: only the latest operation batch can be undone. Favorites recreated during undo receive new Microsoft Edge bookmark identifiers.
+Only the newest eligible apply batch can be undone. Favorites recreated during undo receive new Microsoft Edge bookmark identifiers.
 ```
 
 ### URLs
@@ -85,11 +86,17 @@ Required to read the user's favorites tree, identify cleanup and organization op
 Required to store the latest operation batch locally so the user can review results, recover an interrupted batch, and undo successful operations. The stored record remains on the user's device.
 ```
 
+**Host access: `https://api.openai.com/*`**
+
+```text
+Required only for optional AI classification explicitly initiated by the user with their own OpenAI API key. Requests send minimized favorite fields and existing folder names; full favorite URLs and operation history are not sent.
+```
+
 ### Remote code
 
 - Select **No, I am not using remote code**.
 - All JavaScript required by the extension is bundled in the uploaded package.
-- The extension makes no external network requests.
+- The optional AI feature makes data requests to `api.openai.com`; it does not download or execute remote code.
 
 ### Data usage
 
@@ -106,9 +113,9 @@ Do not declare access to webpage content, precise location, authentication infor
 Certify the disclosures only while the implementation continues to match them:
 
 - Data is used only to provide Bookmark Tidy's disclosed single purpose.
-- Data is not sold or transferred to third parties.
+- Data is not sold. Minimized fields are transferred to OpenAI only when the user explicitly runs AI classification.
 - Data is not used for advertising, profiling, creditworthiness, or unrelated purposes.
-- Bookmark information is not read by the developer because it is not transmitted off the user's device.
+- Favorite information is not transmitted to the developer; optional OpenAI processing is disclosed in the privacy policy.
 
 ### Privacy policy URL
 
