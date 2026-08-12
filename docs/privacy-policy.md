@@ -1,6 +1,6 @@
 # Bookmark Tidy Privacy Policy
 
-**Effective date:** August 9, 2026
+**Effective date:** August 12, 2026
 
 Bookmark Tidy is a Chrome extension that helps users scan, review, organize, and undo changes to their Chrome bookmarks. This policy explains what information the extension accesses, how it is used, and how it is stored.
 
@@ -34,7 +34,7 @@ Bookmark Tidy does not use bookmark information for advertising, profiling, cred
 
 Bookmark analysis is performed locally in the extension on the user's device.
 
-To provide the undo feature, Bookmark Tidy stores the latest operation batch in `chrome.storage.local`. That record can contain bookmark metadata associated with the reviewed operation, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. The latest record remains in local extension storage until it is replaced by a later batch, the extension's local data is cleared through Chrome, or the extension is uninstalled.
+To provide operation history and undo, Bookmark Tidy stores up to 50 operation batches in `chrome.storage.local`. These records can contain bookmark metadata associated with reviewed operations, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. Older records are removed as the bounded history fills. The remaining records stay in local extension storage until the extension's local data is cleared through Chrome or the extension is uninstalled.
 
 ## Data transmission and sharing
 
@@ -47,7 +47,7 @@ Bookmark Tidy does not sell, rent, share, or otherwise transfer user data to thi
 Bookmark Tidy requests only these Chrome permissions:
 
 - **`bookmarks`:** used to read the bookmark tree, show cleanup and organization suggestions, apply user-confirmed changes, and restore affected bookmarks during undo.
-- **`storage`:** used to save the latest operation batch locally so the user can review results and undo that batch.
+- **`storage`:** used to save bounded operation history locally so the user can review prior results and undo the newest eligible batch.
 
 ## User choices and control
 

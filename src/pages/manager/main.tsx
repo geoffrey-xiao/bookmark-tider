@@ -5,7 +5,7 @@ import type { BookmarkItem, BookmarkNode, BookmarkScanResult, CleanupSuggestion 
 import {
   MESSAGE_VERSION,
   type ApplyResponse,
-  type LatestBatchResult,
+  type OperationHistoryResult,
   type ScanResponse,
   type UndoResponse,
 } from '../../types/messages'
@@ -73,7 +73,12 @@ function BatchSummary({ batch, undoing, onUndo, undoButtonRef }: {
   const failed = batch.operations.filter((operation) => operation.status === 'failed').length
   const skipped = batch.operations.filter((operation) => operation.status === 'skipped').length
   const uncertain = batch.operations.filter((operation) => operation.status === 'executing').length
-  const canUndo = batch.status !== 'undone'
+  const canUndo = batch.kind === 'apply'
+    && !batch.undoneByBatchId
+    && batch.status !== 'running'
+    && batch.status !== 'interrupted'
+    && batch.status !== 'undone'
+    && batch.status !== 'undo-partial'
     && batch.operations.some((operation) => operation.status === 'success' && operation.undoStatus !== 'success')
   const issues = batch.operations.filter((operation) =>
     operation.error || operation.undoError,
@@ -82,7 +87,7 @@ function BatchSummary({ batch, undoing, onUndo, undoButtonRef }: {
   return (
     <section className="card batch-card" aria-live="polite">
       <div>
-        <span className="eyebrow">Latest operation batch</span>
+        <span className="eyebrow">Latest {batch.kind} batch</span>
         <h2 className="batch-title">{batch.status.replace('-', ' ')}</h2>
         <p>{succeeded} succeeded · {failed} failed · {skipped} skipped{uncertain ? ` · ${uncertain} needs verification` : ''}</p>
         {batch.status === 'interrupted' && (
@@ -102,6 +107,41 @@ function BatchSummary({ batch, undoing, onUndo, undoButtonRef }: {
         </button>
       )}
     </section>
+  )
+}
+
+function OperationHistory({ batches }: { batches: OperationBatch[] }) {
+  if (batches.length === 0) return null
+
+  return (
+    <details className="card history-card">
+      <summary>
+        <span>
+          <span className="eyebrow">Operation history</span>
+          <strong>{batches.length} earlier batch{batches.length === 1 ? '' : 'es'}</strong>
+        </span>
+        <span className="result-count">Stored locally</span>
+      </summary>
+      <ol className="history-list">
+        {batches.map((batch) => {
+          const succeeded = batch.operations.filter((operation) => operation.status === 'success').length
+          const issues = batch.operations.length - succeeded
+          return (
+            <li key={batch.id}>
+              <span>
+                <strong className="history-status">{batch.kind} · {batch.status.replace('-', ' ')}</strong>
+                <small>{new Date(batch.createdAt).toLocaleString()}</small>
+              </span>
+              <span>
+                {succeeded} succeeded{issues ? ` · ${issues} not applied` : ''}
+                {batch.undoneByBatchId ? ' · undo recorded' : ''}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+      <p className="history-note">For safety, only the newest eligible batch can be undone.</p>
+    </details>
   )
 }
 
@@ -334,7 +374,7 @@ export function Manager() {
   const [result, setResult] = useState<BookmarkScanResult | null>(null)
   const [query, setQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
-  const [latestBatch, setLatestBatch] = useState<OperationBatch | null>(null)
+  const [history, setHistory] = useState<OperationBatch[]>([])
   const [loading, setLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [undoing, setUndoing] = useState(false)
@@ -343,12 +383,13 @@ export function Manager() {
   const [pendingUndoBatch, setPendingUndoBatch] = useState<OperationBatch | null>(null)
   const reviewButtonRef = useRef<HTMLButtonElement>(null)
   const undoButtonRef = useRef<HTMLButtonElement>(null)
+  const latestBatch = history[0] ?? null
 
   useEffect(() => {
     void runtimeAdapter
-      .send<LatestBatchResult>({ version: MESSAGE_VERSION, type: 'GET_LATEST_BATCH' })
+      .send<OperationHistoryResult>({ version: MESSAGE_VERSION, type: 'GET_OPERATION_HISTORY' })
       .then((response) => {
-        if (response.ok) setLatestBatch(response.data)
+        if (response.ok) setHistory(response.data)
       })
       .catch(() => setError('Saved operation history is temporarily unavailable. Scanning is still safe.'))
   }, [])
@@ -420,7 +461,7 @@ export function Manager() {
         suggestions,
       })
       if (response.ok) {
-        setLatestBatch(response.data)
+        setHistory((current) => [response.data, ...current.filter((batch) => batch.id !== response.data.id)])
         await scan()
       } else {
         setError(response.error.message)
@@ -440,7 +481,13 @@ export function Manager() {
     try {
       const response = await runtimeAdapter.send<UndoResponse>({ version: MESSAGE_VERSION, type: 'UNDO_LATEST_BATCH' })
       if (response.ok) {
-        setLatestBatch(response.data)
+        setHistory((current) => [
+          response.data.undoBatch,
+          response.data.sourceBatch,
+          ...current.filter((batch) =>
+            batch.id !== response.data.undoBatch.id && batch.id !== response.data.sourceBatch.id,
+          ),
+        ])
         await scan()
       } else {
         setError(response.error.message)
@@ -457,7 +504,7 @@ export function Manager() {
     <main className="shell">
       <header className="page-header">
         <div>
-          <span className="eyebrow">v0.1 · Scan, organize, undo</span>
+          <span className="eyebrow">v0.2 · Safe local history</span>
           <h1>Bookmark Tidy</h1>
           <p>Scanning is read-only. Only suggestions you select and explicitly confirm can modify bookmarks.</p>
         </div>
@@ -475,6 +522,7 @@ export function Manager() {
           undoButtonRef={undoButtonRef}
         />
       )}
+      <OperationHistory batches={history.slice(1)} />
 
       {!result ? (
         <section className="card empty-state">

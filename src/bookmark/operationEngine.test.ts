@@ -124,12 +124,12 @@ class MemoryBookmarks implements BookmarksAdapter {
   }
 }
 
-class MemoryStore implements OperationStore {
+class MemoryStore implements Pick<OperationStore, 'getLatestBatch' | 'saveBatch'> {
   latest: OperationBatch | null = null
   saves = 0
 
   async getLatestBatch(): Promise<OperationBatch | null> { return this.latest }
-  async saveLatestBatch(batch: OperationBatch): Promise<void> {
+  async saveBatch(batch: OperationBatch): Promise<void> {
     this.latest = batch
     this.saves += 1
   }
@@ -165,8 +165,10 @@ describe('operationEngine', () => {
     expect(store.saves).toBeGreaterThanOrEqual(2)
 
     const undone = await undoBatch(batch, deps)
-    expect(undone.status).toBe('undone')
-    expect(undone.operations[0].restoredId).toBe('restored-100')
+    expect(undone.undoBatch.status).toBe('success')
+    expect(undone.undoBatch.kind).toBe('undo')
+    expect(undone.sourceBatch.undoneByBatchId).toBe(undone.undoBatch.id)
+    expect(undone.undoBatch.operations[0].restoredId).toBe('restored-100')
     expect(await bookmarks.get('restored-100')).toMatchObject({
       title: bookmark.title,
       url: bookmark.url,
@@ -232,7 +234,7 @@ describe('operationEngine', () => {
     expect(await bookmarks.get(bookmark.id)).toMatchObject({ parentId: destinationFolder.id })
 
     const undone = await undoBatch(batch, deps)
-    expect(undone.status).toBe('undone')
+    expect(undone.undoBatch.status).toBe('success')
     expect(await bookmarks.get(bookmark.id)).toMatchObject({
       parentId: sourceFolder.id,
       index: bookmark.index,
@@ -276,9 +278,9 @@ describe('operationEngine', () => {
     )
     const undone = await undoBatch(batch, deps)
 
-    expect(undone.status).toBe('undone')
-    const restoredDuplicateId = undone.operations[0].restoredId
-    const restoredFolderId = undone.operations[1].restoredId
+    expect(undone.undoBatch.status).toBe('success')
+    const restoredFolderId = undone.undoBatch.operations[0].restoredId
+    const restoredDuplicateId = undone.undoBatch.operations[1].restoredId
     expect(restoredDuplicateId).toBeDefined()
     expect(restoredFolderId).toBeDefined()
     expect(await bookmarks.get(restoredDuplicateId!)).toMatchObject({ index: 1 })
@@ -295,6 +297,22 @@ describe('operationEngine', () => {
     }
 
     const recovered = await recoverInterruptedBatch(persistedDuringExecution, bookmarks)
+    expect(recovered.status).toBe('success')
+    expect(recovered.operations[0].status).toBe('success')
+  })
+
+  it('recovers an interrupted undo move after the browser restored the original parent', async () => {
+    const bookmarks = new MemoryBookmarks(sourceNodes())
+    const deps = dependencies(bookmarks)
+    const applied = await executeSuggestions([moveSuggestion()], deps)
+    const undone = await undoBatch(applied, deps)
+    const persistedDuringUndo: OperationBatch = {
+      ...undone.undoBatch,
+      status: 'running',
+      operations: undone.undoBatch.operations.map((operation) => ({ ...operation, status: 'executing' })),
+    }
+
+    const recovered = await recoverInterruptedBatch(persistedDuringUndo, bookmarks)
     expect(recovered.status).toBe('success')
     expect(recovered.operations[0].status).toBe('success')
   })

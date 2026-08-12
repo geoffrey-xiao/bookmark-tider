@@ -23,7 +23,7 @@
   <body>
     <main>
       <h1>Bookmark Tidy Privacy Policy</h1>
-      <p class="effective-date">Effective date: August 9, 2026</p>
+      <p class="effective-date">Effective date: August 12, 2026</p>
       <p>Bookmark Tidy is a Chrome extension that helps users scan, review, organize, and undo changes to their Chrome bookmarks. This policy explains what information the extension accesses, how it is used, and how it is stored.</p>
 
       <h2>Information Bookmark Tidy accesses</h2>
@@ -52,7 +52,7 @@
 
       <h2>Local processing and storage</h2>
       <p>Bookmark analysis is performed locally in the extension on the user's device.</p>
-      <p>To provide the undo feature, Bookmark Tidy stores the latest operation batch in <code>chrome.storage.local</code>. That record can contain bookmark metadata associated with the reviewed operation, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. The latest record remains in local extension storage until it is replaced by a later batch, the extension's local data is cleared through Chrome, or the extension is uninstalled.</p>
+      <p>To provide operation history and undo, Bookmark Tidy stores up to 50 operation batches in <code>chrome.storage.local</code>. These records can contain bookmark metadata associated with reviewed operations, including titles, URLs, identifiers, folder locations, ordering, operation status, and error details. Older records are removed as the bounded history fills. The remaining records stay in local extension storage until the extension's local data is cleared through Chrome or the extension is uninstalled.</p>
 
       <h2>Data transmission and sharing</h2>
       <p>Bookmark Tidy does not transmit bookmark information or operation records to the developer or to external servers. It does not include analytics, telemetry, advertising services, or other third-party data services.</p>
@@ -62,7 +62,7 @@
       <p>Bookmark Tidy requests only these Chrome permissions:</p>
       <ul>
         <li><strong><code>bookmarks</code>:</strong> used to read the bookmark tree, show cleanup and organization suggestions, apply user-confirmed changes, and restore affected bookmarks during undo.</li>
-        <li><strong><code>storage</code>:</strong> used to save the latest operation batch locally so the user can review results and undo that batch.</li>
+        <li><strong><code>storage</code>:</strong> used to save bounded operation history locally so the user can review prior results and undo the newest eligible batch.</li>
       </ul>
 
       <h2>User choices and control</h2>

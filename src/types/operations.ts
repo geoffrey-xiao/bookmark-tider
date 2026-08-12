@@ -1,6 +1,6 @@
 import type { BookmarkNode, CleanupSuggestion } from './bookmarks'
 
-export const OPERATION_SCHEMA_VERSION = 1 as const
+export const OPERATION_SCHEMA_VERSION = 2 as const
 
 export type OperationStatus = 'pending' | 'executing' | 'success' | 'failed' | 'skipped'
 export type UndoStatus = 'pending' | 'success' | 'failed' | 'skipped'
@@ -22,6 +22,9 @@ export type OperationRecord = {
 export type OperationBatch = {
   schemaVersion: typeof OPERATION_SCHEMA_VERSION
   id: string
+  kind: 'apply' | 'undo'
+  sourceBatchId?: string
+  undoneByBatchId?: string
   createdAt: number
   completedAt?: number
   undoneAt?: number
@@ -31,4 +34,8 @@ export type OperationBatch = {
 
 export type ApplySuggestionsResponse = OperationBatch
 export type LatestBatchResponse = OperationBatch | null
-export type UndoBatchResponse = OperationBatch
+export type OperationHistoryResponse = OperationBatch[]
+export type UndoBatchResponse = {
+  sourceBatch: OperationBatch
+  undoBatch: OperationBatch
+}

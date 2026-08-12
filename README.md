@@ -2,7 +2,7 @@
 
 A safety-first Chrome Manifest V3 extension for scanning, cleaning, and organizing bookmarks. The core product rule is: analyze first, review changes, then apply—with an undo path.
 
-The active v0.1 delivery plan is the [three-day MVP roadmap](bookmark_tidy_docs/Bookmark_Tidy_MVP_迭代路线图.md). The larger engineering checklist is retained as the v0.2+ backlog.
+v0.2 extends the completed [three-day MVP roadmap](bookmark_tidy_docs/Bookmark_Tidy_MVP_迭代路线图.md) with versioned local operation history. The larger engineering checklist remains the source backlog.
 
 ## Getting started
 
@@ -20,16 +20,16 @@ During development, run `npm run dev` for page work. Rebuild before reloading th
 The default build targets the Chrome Web Store. The Edge build uses the same application code but replaces the generated manifest description with Microsoft Edge-specific listing text.
 
 ```sh
-# Chrome: creates release/bookmark-tidy-chrome-0.1.0.zip
+# Chrome: creates release/bookmark-tidy-chrome-0.2.0.zip
 npm run package:chrome
 
-# Microsoft Edge: creates release/bookmark-tidy-edge-0.1.0.zip
+# Microsoft Edge: creates release/bookmark-tidy-edge-0.2.0.zip
 npm run package:edge
 ```
 
 To test the Edge build before packaging, run `npm run build:edge`, open `edge://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist`.
 
-## v0.1 safety check
+## v0.2 safety check
 
 Before using the extension on a real library, create a dedicated test folder with duplicate bookmarks, an empty subfolder, and a bookmark that can be moved to another existing folder. Then:
 
@@ -38,7 +38,7 @@ Before using the extension on a real library, create a dedicated test folder wit
 3. Apply the batch and verify its success, failure, and skipped counts.
 4. Choose **Undo latest batch** and confirm titles, URLs, parent folders, and ordering are restored. Deleted nodes are recreated with new Chrome IDs.
 
-v0.1 stores only the latest operation batch in `chrome.storage.local`. It does not send bookmark data to a server.
+v0.2 keeps up to 50 operation batches in `chrome.storage.local` and automatically migrates the v0.1 latest-batch record. Earlier batches are read-only; only the newest eligible apply batch can be undone, and that undo is saved as a separate batch. Bookmark data is never sent to a server.
 
 ## Quality commands
 

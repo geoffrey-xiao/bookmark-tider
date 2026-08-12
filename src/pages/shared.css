@@ -54,6 +54,15 @@ p { color: #596579; line-height: 1.55; }
 .batch-results { margin: 10px 0 0; padding-left: 18px; color: #9a2d2d; font-size: 12px; }
 .warning-text { color: #815b12; font-weight: 700; }
 .batch-title { text-transform: capitalize; }
+.history-card { margin: 18px 0; }
+.history-card summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; cursor: pointer; }
+.history-card summary > span:first-child { display: flex; flex-direction: column; gap: 5px; }
+.history-list { margin: 18px 0 0; padding: 0; list-style: none; }
+.history-list li { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 0; border-top: 1px solid #e7eaf0; color: #596579; font-size: 13px; }
+.history-list li > span:first-child { display: flex; flex-direction: column; gap: 3px; }
+.history-list small { color: #7b8698; }
+.history-status { color: #273247; text-transform: capitalize; }
+.history-note { margin: 8px 0 0; color: #66738a; font-size: 12px; }
 .secondary-button { color: #3659d9; border: 1px solid #c7d1fb; background: white; }
 .secondary-button:hover { background: #eef1ff; }
 .danger-button { background: #b43838; }

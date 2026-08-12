@@ -46,13 +46,57 @@ chrome.runtime.onMessage.addListener(
           const recoveredBatch = shouldRecover
             ? await recoverInterruptedBatch(storedBatch, bookmarksAdapter)
             : storedBatch
-          if (shouldRecover) await operationStore.saveLatestBatch(recoveredBatch)
+          if (shouldRecover) await operationStore.saveBatch(recoveredBatch)
           return { ok: true, data: recoveredBatch }
+        }
+        case 'GET_OPERATION_HISTORY':
+        {
+          const history = await operationStore.getHistory()
+          const latestBatch = history[0]
+          if (!latestBatch) return { ok: true, data: [] }
+          const shouldRecover = latestBatch.status === 'running' || latestBatch.status === 'interrupted'
+          const recoveredBatch = shouldRecover
+            ? await recoverInterruptedBatch(latestBatch, bookmarksAdapter)
+            : latestBatch
+          if (shouldRecover) await operationStore.saveBatch(recoveredBatch)
+          let olderHistory = history.slice(1)
+          if (
+            recoveredBatch.kind === 'undo'
+            && recoveredBatch.status !== 'running'
+            && recoveredBatch.status !== 'interrupted'
+            && recoveredBatch.sourceBatchId
+          ) {
+            const sourceBatch = await operationStore.getBatch(recoveredBatch.sourceBatchId)
+            if (sourceBatch && !sourceBatch.undoneByBatchId) {
+              sourceBatch.undoneAt = recoveredBatch.completedAt ?? Date.now()
+              sourceBatch.undoneByBatchId = recoveredBatch.id
+              await operationStore.saveBatch(sourceBatch)
+              olderHistory = olderHistory.map((batch) => batch.id === sourceBatch.id ? sourceBatch : batch)
+            }
+          }
+          return { ok: true, data: [recoveredBatch, ...olderHistory] }
         }
         case 'UNDO_LATEST_BATCH': {
           const latestBatch = await operationStore.getLatestBatch()
           if (!latestBatch) {
             return { ok: false, error: { code: 'NO_BATCH', message: 'There is no batch to undo.' } }
+          }
+          const hasReversibleOperation = latestBatch.operations.some((operation) =>
+            operation.status === 'success' && operation.undoStatus !== 'success',
+          )
+          if (
+            latestBatch.kind !== 'apply'
+            || latestBatch.undoneByBatchId
+            || latestBatch.status === 'running'
+            || latestBatch.status === 'interrupted'
+            || latestBatch.status === 'undone'
+            || latestBatch.status === 'undo-partial'
+            || !hasReversibleOperation
+          ) {
+            return {
+              ok: false,
+              error: { code: 'NO_UNDOABLE_BATCH', message: 'The newest batch is not eligible for undo.' },
+            }
           }
           return {
             ok: true,

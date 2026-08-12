@@ -9,7 +9,7 @@ import {
 
 export type OperationDependencies = {
   bookmarks: BookmarksAdapter
-  store: OperationStore
+  store: Pick<OperationStore, 'saveBatch'>
   createId?: () => string
   now?: () => number
 }
@@ -74,6 +74,7 @@ export async function executeSuggestions(
   const batch: OperationBatch = {
     schemaVersion: OPERATION_SCHEMA_VERSION,
     id: createId(),
+    kind: 'apply',
     createdAt: now(),
     status: 'running',
     operations: uniqueSuggestions.map(makeOperation),
@@ -92,12 +93,12 @@ export async function executeSuggestions(
     }
   }
 
-  await dependencies.store.saveLatestBatch(batch)
+  await dependencies.store.saveBatch(batch)
 
   for (const operation of batch.operations) {
     if (operation.status !== 'pending') continue
     operation.status = 'executing'
-    await dependencies.store.saveLatestBatch(batch)
+    await dependencies.store.saveBatch(batch)
     try {
       if (operation.kind === 'move' && operation.after) {
         await dependencies.bookmarks.move(operation.targetId, { parentId: operation.after.parentId })
@@ -109,12 +110,12 @@ export async function executeSuggestions(
       operation.status = 'failed'
       operation.error = error instanceof Error ? error.message : 'Bookmark operation failed.'
     }
-    await dependencies.store.saveLatestBatch(batch)
+    await dependencies.store.saveBatch(batch)
   }
 
   batch.completedAt = now()
   batch.status = finishStatus(batch.operations)
-  await dependencies.store.saveLatestBatch(batch)
+  await dependencies.store.saveBatch(batch)
   return batch
 }
 
@@ -146,28 +147,50 @@ async function restoreDeletedNode(
 }
 
 export async function undoBatch(
-  batch: OperationBatch,
+  sourceBatch: OperationBatch,
   dependencies: OperationDependencies,
-): Promise<OperationBatch> {
-  if (batch.status === 'undone') return batch
+): Promise<{ sourceBatch: OperationBatch; undoBatch: OperationBatch }> {
   const now = dependencies.now ?? Date.now
-  const uncertain = batch.operations.filter((operation) => operation.status === 'executing')
-  for (const operation of uncertain) {
-    operation.undoStatus = 'skipped'
-    operation.undoError = 'This operation was interrupted while the browser was changing the bookmark; verify it manually.'
+  const createId = dependencies.createId ?? (() => crypto.randomUUID())
+  if (sourceBatch.kind !== 'apply') throw new Error('Undo batches cannot be undone.')
+  if (sourceBatch.undoneByBatchId) throw new Error('This batch already has an undo record.')
+  if (sourceBatch.status === 'running' || sourceBatch.status === 'interrupted') {
+    throw new Error('Resolve the interrupted batch before undoing it.')
   }
-  const reversible = [...batch.operations].reverse().filter((operation) => operation.status === 'success')
+  const reversible = [...sourceBatch.operations]
+    .reverse()
+    .filter((operation) => operation.status === 'success')
+  if (reversible.length === 0) throw new Error('This batch has no successful operations to undo.')
 
-  for (const operation of reversible) {
-    if (operation.undoStatus === 'success') continue
-    operation.undoStatus = 'pending'
+  const undoBatch: OperationBatch = {
+    schemaVersion: OPERATION_SCHEMA_VERSION,
+    id: `undo:${createId()}`,
+    kind: 'undo',
+    sourceBatchId: sourceBatch.id,
+    createdAt: now(),
+    status: 'running',
+    operations: reversible.map((operation) => ({
+      ...operation,
+      id: `undo:${operation.id}`,
+      status: 'pending',
+      error: undefined,
+      undoStatus: undefined,
+      undoError: undefined,
+      restoredId: undefined,
+    })),
+  }
+  await dependencies.store.saveBatch(undoBatch)
+
+  for (const operation of undoBatch.operations) {
+    operation.status = 'executing'
+    await dependencies.store.saveBatch(undoBatch)
     try {
       if (operation.kind === 'move') {
         const current = await dependencies.bookmarks.get(operation.targetId)
         if (!current) throw new Error('The moved bookmark no longer exists.')
         if (current.parentId !== operation.after?.parentId) {
-          operation.undoStatus = 'skipped'
-          operation.undoError = 'The bookmark moved again after this batch.'
+          operation.status = 'skipped'
+          operation.error = 'The bookmark moved again after this batch.'
         } else if (operation.before.parentId === null) {
           throw new Error('The original folder is unavailable.')
         } else {
@@ -175,26 +198,27 @@ export async function undoBatch(
             parentId: operation.before.parentId,
             index: operation.before.index,
           })
-          operation.undoStatus = 'success'
+          operation.status = 'success'
         }
       } else {
         const restored = await restoreDeletedNode(operation.before, dependencies.bookmarks)
         operation.restoredId = restored.id
-        operation.undoStatus = 'success'
+        operation.status = 'success'
       }
     } catch (error) {
-      operation.undoStatus = 'failed'
-      operation.undoError = error instanceof Error ? error.message : 'Undo failed.'
+      operation.status = 'failed'
+      operation.error = error instanceof Error ? error.message : 'Undo failed.'
     }
-    await dependencies.store.saveLatestBatch(batch)
+    await dependencies.store.saveBatch(undoBatch)
   }
 
-  const undoSucceeded = uncertain.length === 0 && reversible.length > 0
-    && reversible.every((operation) => operation.undoStatus === 'success')
-  batch.undoneAt = now()
-  batch.status = undoSucceeded ? 'undone' : 'undo-partial'
-  await dependencies.store.saveLatestBatch(batch)
-  return batch
+  undoBatch.completedAt = now()
+  undoBatch.status = finishStatus(undoBatch.operations)
+  sourceBatch.undoneAt = undoBatch.completedAt
+  sourceBatch.undoneByBatchId = undoBatch.id
+  await dependencies.store.saveBatch(undoBatch)
+  await dependencies.store.saveBatch(sourceBatch)
+  return { sourceBatch, undoBatch }
 }
 
 export async function recoverInterruptedBatch(
@@ -202,6 +226,32 @@ export async function recoverInterruptedBatch(
   bookmarks: BookmarksAdapter,
 ): Promise<OperationBatch> {
   if (batch.status !== 'running' && batch.status !== 'interrupted') return batch
+
+  for (const operation of batch.operations.filter((item) => item.status === 'pending')) {
+    operation.status = 'skipped'
+    operation.error = 'The worker stopped before this operation began.'
+  }
+
+  if (batch.kind === 'undo') {
+    for (const operation of batch.operations.filter((item) => item.status === 'executing')) {
+      if (operation.kind === 'move') {
+        const current = await bookmarks.get(operation.targetId)
+        if (current?.parentId === operation.before.parentId) {
+          operation.status = 'success'
+        } else if (current?.parentId === operation.after?.parentId) {
+          operation.status = 'skipped'
+          operation.error = 'The interrupted undo move was confirmed not to have run.'
+        }
+      } else if (operation.restoredId && await bookmarks.get(operation.restoredId)) {
+        operation.status = 'success'
+      }
+    }
+
+    batch.status = batch.operations.some((operation) => operation.status === 'executing')
+      ? 'interrupted'
+      : finishStatus(batch.operations)
+    return batch
+  }
 
   for (const operation of batch.operations.filter((item) => item.status === 'executing')) {
     const current = await bookmarks.get(operation.targetId)
